@@ -1,0 +1,119 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import mysql from "mysql2/promise";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const schemaPath = path.join(__dirname, "../../sql/schema.sql");
+const SEED_MARKER = "-- ==SEED DATA BELOW==";
+
+// Columns added to schema.sql *after* their table already existed for
+// people who ran `npm run migrate` early in the project. `CREATE TABLE IF
+// NOT EXISTS` does nothing once a table exists, so a new column in
+// schema.sql alone never reaches an existing database - these explicit
+// ALTER statements are what actually backfills it. Safe to re-run: a
+// "Duplicate column" error just means it's already there.
+//
+// This has to run BETWEEN the table-creation half of schema.sql and the
+// seed-data half: the seed INSERTs reference view_count, so on an old
+// database that predates this column, running seeds before the backfill
+// fails the same way querying it from the app would.
+const columnBackfills = [
+  "ALTER TABLE properties ADD COLUMN view_count INT DEFAULT 0",
+  "ALTER TABLE experts ADD COLUMN view_count INT DEFAULT 0",
+  "ALTER TABLE plans ADD COLUMN view_count INT DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN is_suspended BOOLEAN DEFAULT FALSE",
+  "ALTER TABLE users ADD COLUMN plan ENUM('starter', 'professional', 'business') NOT NULL DEFAULT 'starter'",
+  "ALTER TABLE plan_inquiries ADD COLUMN assigned_expert_id CHAR(36) NULL",
+  "ALTER TABLE estimates ADD COLUMN assigned_expert_id CHAR(36) NULL",
+  "ALTER TABLE users MODIFY COLUMN role ENUM('client', 'expert', 'property_owner', 'admin') NOT NULL DEFAULT 'client'",
+];
+
+/**
+ * Runs sql/schema.sql against MySQL directly - no `mysql` CLI required.
+ * This is the "npm run migrate" command; it's what actually creates the
+ * database and tables. Sequelize (used everywhere else in the app) only
+ * *queries* those tables once they exist - it does not create them.
+ *
+ * Runs in three ordered phases so each one can safely depend on the
+ * previous having finished, rather than treating the whole file as one
+ * black-box batch:
+ *   1. Table creation (everything above the SEED_MARKER comment)
+ *   2. Column backfills (see columnBackfills above)
+ *   3. Seed data (everything below SEED_MARKER) - uses INSERT IGNORE
+ *      everywhere, so re-running against a database that already has the
+ *      sample rows silently skips them instead of throwing.
+ */
+async function migrate() {
+  const sql = fs.readFileSync(schemaPath, "utf8");
+  const markerIndex = sql.indexOf(SEED_MARKER);
+  if (markerIndex === -1) {
+    console.error(`❌ Could not find "${SEED_MARKER}" in schema.sql - migrate.js and schema.sql are out of sync.`);
+    process.exitCode = 1;
+    return;
+  }
+  const schemaSql = sql.slice(0, markerIndex);
+  const seedSql = sql.slice(markerIndex);
+
+  console.log(`Connecting to MySQL at ${process.env.DB_HOST || "127.0.0.1"}:${process.env.DB_PORT || 3306}...`);
+
+  let connection;
+  try {
+    // Connect WITHOUT selecting a database yet, since schema.sql itself
+    // creates the database with `CREATE DATABASE IF NOT EXISTS`.
+    connection = await mysql.createConnection({
+      host: process.env.DB_HOST || "127.0.0.1",
+      port: process.env.DB_PORT || 3306,
+      user: process.env.DB_USER || "root",
+      password: process.env.DB_PASSWORD || "",
+      multipleStatements: true,
+    });
+  } catch (err) {
+    console.error("❌ Could not connect to MySQL:", err.message);
+    if (err.code === "ER_ACCESS_DENIED_ERROR") {
+      console.error(
+        "\nThis means DB_USER/DB_PASSWORD in server/.env don't match your MySQL login.\n" +
+          "On XAMPP, MySQL's root user often has NO password by default - try setting\n" +
+          "DB_PASSWORD= (empty) in server/.env, or use whatever password you set for\n" +
+          "root when you installed MySQL."
+      );
+    } else if (err.code === "ECONNREFUSED") {
+      console.error(
+        "\nCouldn't reach MySQL at all - make sure your MySQL server is actually\n" +
+          "running (e.g. started in the XAMPP control panel) and that DB_HOST/DB_PORT\n" +
+          "in server/.env match where it's listening."
+      );
+    }
+    process.exitCode = 1;
+    return;
+  }
+
+  try {
+    console.log("1/3  Creating database and tables...");
+    await connection.query(schemaSql);
+
+    console.log("2/3  Backfilling any columns added since your last migrate...");
+    for (const statement of columnBackfills) {
+      try {
+        await connection.query(statement);
+      } catch (err) {
+        if (err.code !== "ER_DUP_FIELDNAME") throw err; // column already exists - fine
+      }
+    }
+
+    console.log("3/3  Adding sample data (skips rows that already exist)...");
+    await connection.query(seedSql);
+
+    console.log("\n✅ Migration complete. Tables and sample data are ready.");
+  } catch (err) {
+    console.error("\n❌ Migration failed:", err.message);
+    process.exitCode = 1;
+  } finally {
+    await connection.end();
+  }
+}
+
+migrate();
