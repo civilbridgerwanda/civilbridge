@@ -1,0 +1,81 @@
+# Nginx server block for CivilBridge PRODUCTION - civil-bridge.com.
+#
+# AlmaLinux's Nginx package doesn't use Debian/Ubuntu's
+# sites-available/sites-enabled convention - config files just go
+# directly in /etc/nginx/conf.d/ and are picked up automatically.
+#
+# One domain serves everything: the built React app as static files, and
+# /api + /socket.io reverse-proxied to the Node backend running on
+# localhost:5000 (kept alive by PM2 - see ecosystem.config.cjs, "name:
+# civilbridge-prod-api"). Keeping frontend and backend on the same origin
+# avoids CORS entirely.
+#
+# Install:
+#   sudo cp deploy/nginx-prod.conf.example /etc/nginx/conf.d/civilbridge-prod.conf
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# IMPORTANT (AlmaLinux-specific, easy to miss): SELinux blocks Nginx from
+# making outbound network connections by default, including the
+# proxy_pass calls below - without this, every /api and /socket.io
+# request fails with "502 Bad Gateway" even though the config itself is
+# correct:
+#   sudo setsebool -P httpd_can_network_connect 1
+#
+# Run this BEFORE requesting an SSL cert with certbot (see README) -
+# certbot edits this exact file in place to add the HTTPS server block.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name civil-bridge.com www.civil-bridge.com;
+
+    # Where `npm run build` output in client/ gets deployed to on the
+    # server - see deploy.sh, which rsyncs client/dist here.
+    root /var/www/civilbridge-prod/client;
+    index index.html;
+
+    # React Router client-side routing: any path that isn't a real static
+    # file falls back to index.html so /marketplace, /experts/:id, etc.
+    # all load the app instead of a raw Nginx 404.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # REST API -> Node/Express on localhost:5000 (the PRODUCTION backend's
+    # port - see server/.env's PORT in the prod checkout)
+    location /api/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Socket.IO (live updates, messaging, notifications) needs the
+    # WebSocket upgrade headers explicitly - a plain proxy_pass like /api/
+    # above is not enough for this one.
+    location /socket.io/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Reasonable upload size for the property/expert-photo upload flow
+    # (Cloudinary is the actual storage - this is just what Nginx will
+    # forward through to Express/Multer before it gets there).
+    client_max_body_size 10M;
+
+    # Static asset caching - Vite fingerprints filenames (e.g.
+    # index-a1b2c3.js), so these are safe to cache aggressively; a new
+    # deploy produces new filenames instead of overwriting old ones.
+    location ~* \.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}

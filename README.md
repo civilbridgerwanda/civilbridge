@@ -594,42 +594,265 @@ you have a real business address/phone, e.g.:
 </script>
 ```
 
-## 18. Deploying
+## 18. Deploying (AlmaLinux Contabo VPS + GitHub + `civil-bridge.com`, with dev + prod)
 
-**Production domain: `civil-bridge.com`** — not deployed yet, but already
-referenced everywhere in the code that expects a real domain
-(`client/src/components/Seo.jsx`'s `SITE_URL`, `client/public/sitemap.xml`,
-`client/public/robots.txt`, `server/.env.example`'s `FROM_EMAIL`), so those
-don't need touching later. What *does* need doing once you actually point
-DNS at a host:
+This section is the concrete version of "deploy this somewhere" for
+**AlmaLinux 9** specifically (RHEL-family: `dnf`, `firewalld`, SELinux -
+notably *different* commands than Ubuntu/Debian) with **two environments
+on the same server**: `dev.civil-bridge.com` to test changes on, and
+`civil-bridge.com` for production, promoted to once verified. Everything
+under `deploy/` (`nginx-prod.conf.example`, `nginx-dev.conf.example`,
+`ecosystem.config.cjs`, `deploy.sh`) exists to support exactly this.
 
-1. **DNS + hosting** — point `civil-bridge.com` at wherever you deploy the
-   frontend (Vercel/Netlify custom domain, or your own server).
-2. **`server/.env`**: set `CLIENT_URL=https://civil-bridge.com` and
-   `SERVER_URL=https://api.civil-bridge.com` (or whatever subdomain/path
-   you host the API on).
-3. **`client/.env`**: set `VITE_API_URL` / `VITE_SOCKET_URL` to that same
-   backend URL.
-4. **OAuth consoles** (Google/Facebook/X — see section 16): update every
-   redirect URI from `http://localhost:5000/...` to
-   `https://api.civil-bridge.com/...`, and each provider's "Website URL"
-   field to `https://civil-bridge.com`.
-5. **`FROM_EMAIL`** in `server/.env`: use a real mailbox at
-   `civil-bridge.com` once you control that domain's DNS (needed for
-   SPF/DKIM so your emails don't land in spam) — the current default
-   (`no-reply@civil-bridge.com`) is just a placeholder until then.
-6. Re-submit `sitemap.xml` to Google Search Console (section 16) once the
-   domain is actually live and crawlable.
+### 18.1. Secure the server first
 
-Beyond the domain itself:
+Before installing anything else: a fresh internet-facing VPS gets
+password-brute-forced against `root` continuously from the moment it's
+online (thousands of attempts a day is completely normal, not a sign
+you've been specifically targeted). Fix this before going further, not
+after:
+
+```bash
+# as root
+dnf update -y
+
+# create a personal sudo user - don't keep using root day to day
+adduser youruser
+passwd youruser
+usermod -aG wheel youruser
+```
+
+Then, from your **local machine** (generates a keypair if you don't
+already have one):
+```bash
+ssh-keygen -t ed25519
+ssh-copy-id youruser@<your-contabo-ip>
+```
+
+Back on the server, disable root login and password auth over SSH,
+leaving only key-based login for your new user:
+```bash
+sudo nano /etc/ssh/sshd_config
+# set: PermitRootLogin no
+# set: PasswordAuthentication no
+sudo systemctl restart sshd
+```
+
+**Test that `ssh youruser@<ip>` still works in a new terminal window
+before closing your current session** - if something's misconfigured,
+you want your existing session still open to fix it, not locked out.
+
+AlmaLinux ships with `firewalld` running by default; make sure it's
+allowing the ports you need:
+```bash
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --reload
+```
+
+### 18.2. Install the stack (`dnf`, not `apt`)
+
+```bash
+# Node.js 20.x
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
+
+# MariaDB (MySQL-compatible - what AlmaLinux ships), Nginx, Git
+sudo dnf install -y mariadb-server nginx git
+sudo systemctl enable --now mariadb
+sudo systemctl enable --now nginx
+sudo mysql_secure_installation
+
+# PM2 - keeps the Node backend running, restarts it on crash/reboot
+sudo npm install -g pm2
+```
+
+**SELinux (AlmaLinux-specific, easy to miss and easy to mistake for a
+broken Nginx config)**: by default SELinux blocks Nginx from making
+outbound network connections at all, which includes the `proxy_pass`
+calls to your Node backend - without this, every `/api` and `/socket.io`
+request 502s even though the Nginx config itself is completely correct:
+```bash
+sudo setsebool -P httpd_can_network_connect 1
+```
+
+### 18.3. Push the code to GitHub (one-time, from your local machine)
+
+```bash
+git init                                  # skip if already a git repo
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/<your-username>/civilbridge.git
+git push -u origin main
+```
+
+`.gitignore` already excludes `node_modules/`, `dist/`, `.env`, and log
+files - your real secrets never get pushed. Double-check `git status`
+doesn't show `server/.env` or `client/.env` staged before your first
+commit; if it does, `.gitignore` was added after they were already
+tracked once - `git rm --cached server/.env client/.env` fixes that.
+
+### 18.4. Clone dev AND prod as two separate checkouts
+
+```bash
+sudo mkdir -p /var/www/civilbridge-dev /var/www/civilbridge-prod
+sudo chown youruser:youruser /var/www/civilbridge-dev /var/www/civilbridge-prod
+
+git clone https://github.com/<your-username>/civilbridge.git /var/www/civilbridge-dev
+git clone https://github.com/<your-username>/civilbridge.git /var/www/civilbridge-prod
+```
+
+Two independent checkouts, two independent databases, two independent
+PM2 processes, two independent Nginx server blocks - nothing about them
+is shared except the source repo they both pull from. This is what makes
+"test on dev, then promote to prod" simple: they genuinely can't affect
+each other.
+
+**Configure each one's `server/.env`** (and `client/.env` the same way,
+with matching URLs) - the values that must differ between the two:
+
+```
+# /var/www/civilbridge-dev/server/.env
+PORT=5001
+CLIENT_URL=https://dev.civil-bridge.com
+SERVER_URL=https://dev.civil-bridge.com
+DB_NAME=civilbridge_dev
+
+# /var/www/civilbridge-prod/server/.env
+PORT=5000
+CLIENT_URL=https://civil-bridge.com
+SERVER_URL=https://civil-bridge.com
+DB_NAME=civilbridge_prod
+```
+
+Everything else (`DB_USER`/`DB_PASSWORD`, `JWT_SECRET`, `SESSION_SECRET`
+- generate these with `openssl rand -hex 32`, SMTP, Cloudinary, OAuth
+keys) can be the same values in both, or you can use fully separate test
+vs. real credentials for things like Cloudinary/SMTP if you want dev
+activity kept completely out of production services. Note `CLIENT_URL`
+and `SERVER_URL` are the same domain as each other in both cases - this
+setup serves frontend and API from one origin per environment via Nginx,
+so there's no separate API subdomain to manage and no CORS to fight with.
+
+In `deploy/ecosystem.config.cjs`, rename `name:` to
+`"civilbridge-dev-api"` in the dev checkout (leave it as
+`"civilbridge-prod-api"` in prod) - this is the only thing that needs
+editing in that file between the two checkouts.
+
+### 18.5. First deploy of each
+
+```bash
+cd /var/www/civilbridge-dev && ./deploy/deploy.sh dev
+cd /var/www/civilbridge-prod && ./deploy/deploy.sh prod
+```
+
+Each run installs dependencies, runs `npm run migrate` (creates that
+checkout's own database and tables), builds the frontend, copies it to
+where Nginx serves it from, and starts/restarts the backend under PM2.
+Then make both PM2 processes and Nginx permanent:
+
+```bash
+pm2 save                  # remember both processes across reboots
+pm2 startup                # prints a command - copy/paste and run it once
+
+sudo cp /var/www/civilbridge-prod/deploy/nginx-prod.conf.example /etc/nginx/conf.d/civilbridge-prod.conf
+sudo cp /var/www/civilbridge-dev/deploy/nginx-dev.conf.example /etc/nginx/conf.d/civilbridge-dev.conf
+sudo nginx -t               # should say "syntax is ok" / "test is successful"
+sudo systemctl reload nginx
+```
+
+(AlmaLinux's Nginx package uses `/etc/nginx/conf.d/*.conf` directly -
+there's no separate `sites-available`/`sites-enabled` step like on
+Ubuntu/Debian.)
+
+### 18.6. Point both domains at the server, then get HTTPS for both
+
+At your domain registrar, add **two A records** - `civil-bridge.com` (plus
+`www.civil-bridge.com`) and `dev.civil-bridge.com` - both pointing at your
+Contabo server's public IP. DNS can take anywhere from a few minutes to a
+few hours to propagate; `dig civil-bridge.com` / `dig dev.civil-bridge.com`
+from your own machine shows you once each resolves.
+
+Once they resolve:
+```bash
+sudo dnf install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d civil-bridge.com -d www.civil-bridge.com
+sudo certbot --nginx -d dev.civil-bridge.com
+```
+
+Certbot edits each Nginx config in place to add its HTTPS block and sets
+up auto-renewal - nothing further to do here.
+
+### 18.7. Update the things that only make sense once the domain is real
+
+Do this against the **production** domain/credentials - dev can keep
+using its own separate OAuth apps/SMTP if you want to test those flows
+without touching real ones, or just skip OAuth/email testing on dev
+entirely and only wire it up for prod.
+
+- **OAuth consoles** (Google/Facebook/X - section 16): update every
+  redirect URI to `https://civil-bridge.com/api/auth/.../callback`, and
+  each provider's "Website URL" field to `https://civil-bridge.com`.
+- **`FROM_EMAIL`** in prod's `server/.env`: point it at a real mailbox on
+  `civil-bridge.com` once you control that domain's DNS (needed for
+  SPF/DKIM so outgoing mail doesn't land in spam).
+- Re-submit `sitemap.xml` to Google Search Console (section 16) now that
+  the domain is actually live and crawlable.
+
+### 18.8. The ongoing update workflow
+
+This is the part you'll actually use day to day. **Locally**, make your
+changes, then:
+
+```bash
+git add .
+git commit -m "describe what changed"
+git push origin main
+```
+
+**On the server, test on dev first:**
+```bash
+ssh youruser@your-contabo-ip
+cd /var/www/civilbridge-dev
+./deploy/deploy.sh dev
+```
+Click around on `dev.civil-bridge.com` and confirm it looks right.
+
+**Once you're happy with it, promote the exact same commit to prod:**
+```bash
+cd /var/www/civilbridge-prod
+./deploy/deploy.sh prod
+```
+
+That's the whole cycle. `deploy.sh` handles pulling the new code,
+installing anything new in `package.json`, running any new database
+migrations against that checkout's own database (safe to run repeatedly -
+see `migrate.js`'s own comment for why), rebuilding the frontend, and
+restarting the right PM2 process. Nothing to reconfigure in Nginx, PM2, or
+SELinux for a normal code update - you only touch those again for
+infrastructure changes (new ports, a new subdomain, etc.).
+
+**If you'd rather not SSH in manually every time**, the natural next step
+is a GitHub Actions workflow that SSHes in and runs `deploy.sh dev`
+automatically on every push to `main` (using something like
+[`appleboy/ssh-action`](https://github.com/appleboy/ssh-action) with your
+server's SSH key stored as a GitHub secret), with promoting to prod kept
+as a manual step you trigger deliberately. That's a reasonable follow-up
+once the manual flow above feels solid - worth doing as its own step
+rather than the very first thing, so you're not debugging both the deploy
+process and the automation at once.
+
+Beyond this specific Contabo/AlmaLinux setup, the same pieces apply
+anywhere:
 
 - **Frontend**: `npm run build` in `client/` produces static files in
-  `client/dist/` — deploy to Vercel, Netlify, or any static host.
-- **Backend**: deploy `server/` to a Node host (Render, Railway, a VPS, or
-  Google Cloud Run).
-- **Database**: use a managed MySQL instance in production and update
-  `server/.env` accordingly.
-- **Email/uploads**: use real SMTP and Cloudinary credentials in production
-  `server/.env` — both fail gracefully (log instead of crash / return a
-  clear error) if left unset, so it's safe to deploy without them first
-  and add them later.
+  `client/dist/` - deployable to any static host, not just via Nginx.
+- **Backend**: any Node host works (Render, Railway, Google Cloud Run) if
+  you'd rather not manage a VPS yourself.
+- **Database**: a managed MySQL instance works fine in place of
+  self-hosting it on the same VPS.
+- **Email/uploads**: SMTP and Cloudinary both fail gracefully (log instead
+  of crash) if left unset, so it's safe to deploy without them first and
+  add real credentials later.
