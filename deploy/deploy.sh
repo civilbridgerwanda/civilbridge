@@ -33,7 +33,15 @@ if [ "$ENV" != "dev" ] && [ "$ENV" != "prod" ]; then
 fi
 
 PM2_NAME="civilbridge-${ENV}-api"
-WEB_ROOT="/var/www/civilbridge-${ENV}/client"
+# A SIBLING directory to the checkout, deliberately NOT nested inside
+# client/ - client/ is source code (package.json, src/, node_modules);
+# this is only ever the built dist/ output, copied here by rsync below.
+# These must never be the same path or overlap: an earlier version of
+# this script pointed WEB_ROOT at client/ itself, and `rsync --delete`
+# deleted the entire source checkout (package.json, src/, node_modules)
+# because it was rsync-ing dist/ into its own parent directory. If you
+# hit that, see the README's deploy section for recovery steps.
+WEB_ROOT="/var/www/civilbridge-${ENV}-web"
 
 echo "==> Deploying '$ENV' (PM2 process: $PM2_NAME, web root: $WEB_ROOT)"
 

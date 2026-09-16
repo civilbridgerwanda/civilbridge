@@ -743,6 +743,20 @@ editing in that file between the two checkouts.
 
 ### 18.5. First deploy of each
 
+**Note the web root is a *sibling* directory, not `client/` itself**:
+Nginx serves from `/var/www/civilbridge-dev-web` (and `-prod-web`), which
+is separate from the git checkout's `/var/www/civilbridge-dev/client`
+(the actual source: `package.json`, `src/`, `node_modules`). This
+distinction matters a lot: an earlier version of `deploy.sh` pointed the
+web root at `client/` itself, and `rsync --delete` deleted the entire
+source checkout in the process (it was rsync-ing `dist/` into its own
+parent directory). If you ever see rsync report "file has vanished" or
+your checkout's `client/` folder is suddenly missing `package.json`/`src/`,
+that's this exact problem — recover with `git checkout -- client/` from
+inside the checkout (everything except `client/.env`, which isn't tracked
+by git and needs recreating from your own record of its values), then
+`npm install` again in `client/`.
+
 ```bash
 cd /var/www/civilbridge-dev && ./deploy/deploy.sh dev
 cd /var/www/civilbridge-prod && ./deploy/deploy.sh prod

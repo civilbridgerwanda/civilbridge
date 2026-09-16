@@ -29,9 +29,13 @@ server {
     listen [::]:80;
     server_name civil-bridge.com www.civil-bridge.com;
 
-    # Where `npm run build` output in client/ gets deployed to on the
-    # server - see deploy.sh, which rsyncs client/dist here.
-    root /var/www/civilbridge-prod/client;
+    # IMPORTANT: this is a SIBLING directory to the git checkout
+    # (/var/www/civilbridge-prod), NOT .../civilbridge-prod/client. That
+    # folder is source code (package.json, src/, node_modules) - pointing
+    # Nginx's root at it, or having deploy.sh rsync into it, deletes the
+    # entire source checkout (see deploy.sh's comment on WEB_ROOT for
+    # exactly why, and README section 18 for recovery if this happens).
+    root /var/www/civilbridge-prod-web;
     index index.html;
 
     # React Router client-side routing: any path that isn't a real static
