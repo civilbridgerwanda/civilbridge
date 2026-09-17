@@ -142,7 +142,7 @@ export default function Experts() {
               key={cat.value}
               type="button"
               onClick={() => setActiveCategory(cat.value)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
                 activeCategory === cat.value
                   ? "bg-brand-500 text-white"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -171,7 +171,7 @@ export default function Experts() {
           <button
             type="button"
             onClick={() => setShowMoreFilters((v) => !v)}
-            className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition ${
+            className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
               showMoreFilters || activeExtraFilters
                 ? "border-brand-500 bg-brand-50 text-brand-600"
                 : "border-slate-300 text-ink-900 hover:bg-slate-50"
@@ -285,7 +285,8 @@ export default function Experts() {
               <motion.div
                 key={e.id}
                 variants={fadeUp}
-                className="rounded-2xl border border-slate-200 p-6 transition hover:-translate-y-1 hover:shadow-lg"
+                whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
+                className="rounded-2xl border border-slate-200 p-6 transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg"
               >
                 <div className="flex items-center gap-4">
                   <div className="relative shrink-0">
@@ -326,7 +327,7 @@ export default function Experts() {
                     ))}
                   </div>
                   <span className="text-sm font-semibold text-ink-900">{formatRating(e.rating)}</span>
-                  <span className="text-sm text-slate-400">({e.review_count} reviews)</span>
+                  <span className="text-sm text-tertiary">({e.review_count} reviews)</span>
                 </div>
 
                 {e.specialization && <p className="mt-3 text-sm text-slate-600">{e.specialization}</p>}
@@ -338,7 +339,7 @@ export default function Experts() {
 
                 <Link
                   to={`/experts/${e.id}`}
-                  className="mt-5 block rounded-lg bg-brand-500 py-2.5 text-center font-semibold text-white transition hover:bg-brand-600"
+                  className="mt-5 block rounded-lg bg-brand-500 py-2.5 text-center font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
                 >
                   View Profile
                 </Link>
@@ -358,7 +359,7 @@ export default function Experts() {
             <button
               type="button"
               onClick={() => setVisibleCount((c) => c + 3)}
-              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition hover:bg-brand-600"
+              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
             >
               Load More Experts
             </button>
@@ -375,7 +376,7 @@ export default function Experts() {
           </p>
           <Link
             to="/join-as-expert"
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-brand-600 transition hover:bg-brand-50"
+            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-brand-600 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-50"
           >
             Join as Expert <ArrowRight className="h-4 w-4" />
           </Link>

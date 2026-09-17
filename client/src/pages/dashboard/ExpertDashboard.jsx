@@ -201,7 +201,7 @@ export default function ExpertDashboard() {
       <p className="mt-1 text-slate-500">Your profile, stats, and estimates waiting for review.</p>
 
       <div className="mt-4">
-        <UpgradeSuggestion plan={user?.plan} className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-500 to-brand-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90" />
+        <UpgradeSuggestion plan={user?.plan} className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-500 to-brand-700 px-4 py-2.5 text-sm font-semibold text-white transition-opacity duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:opacity-90" />
       </div>
 
       {loading && (
@@ -241,7 +241,7 @@ export default function ExpertDashboard() {
               </div>
 
               <div className="mt-4">
-                <ContactSupportButton className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:bg-slate-50" />
+                <ContactSupportButton className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-ink-900 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-slate-50" />
               </div>
 
               {!profile.is_verified && (

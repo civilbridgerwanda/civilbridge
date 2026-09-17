@@ -158,7 +158,7 @@ export default function Plans() {
               key={p.value}
               type="button"
               onClick={() => setActivePill(p.value)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
                 activePill === p.value
                   ? "bg-brand-500 text-white"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -224,7 +224,7 @@ export default function Plans() {
           <button
             type="button"
             onClick={() => setShowMoreFilters((v) => !v)}
-            className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition ${
+            className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
               showMoreFilters
                 ? "border-brand-500 bg-brand-50 text-brand-600"
                 : "border-slate-300 text-ink-900 hover:bg-slate-50"
@@ -325,7 +325,8 @@ export default function Plans() {
               <motion.div
                 key={p.id}
                 variants={fadeUp}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:shadow-lg"
+                whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg"
               >
                 <Link to={`/plans/${p.id}`} className="block">
                   <div className="relative" style={{ aspectRatio: "4 / 3" }}>
@@ -388,7 +389,7 @@ export default function Plans() {
             <button
               type="button"
               onClick={() => setVisibleCount((c) => c + 5)}
-              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition hover:bg-brand-600"
+              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
             >
               Load More Plans
             </button>
@@ -406,7 +407,7 @@ export default function Plans() {
           </p>
           <Link
             to="/ai-studio"
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-brand-600 transition hover:bg-brand-50"
+            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-brand-600 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-50"
           >
             Create Custom Plan <ArrowRight className="h-4 w-4" />
           </Link>

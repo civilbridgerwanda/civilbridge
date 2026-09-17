@@ -23,19 +23,19 @@ const stats = [
 const featuredProperties = [
   {
     title: "Estate Development",
-    image: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1689013398932-b576a11e07a1?w=800&q=80",
   },
   {
     title: "Prime Land Plots",
-    image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1786795468102-84cd1ac41cd8?w=800&q=80",
   },
   {
     title: "New Construction",
-    image: "https://images.unsplash.com/photo-1541976590-713941681591?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1648708511872-5426c0f29c27?w=800&q=80",
   },
   {
     title: "Modern Residential Complex",
-    image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1672597238213-fe76a82b50cb?w=800&q=80",
   },
 ];
 
@@ -73,7 +73,7 @@ export default function Home() {
       <section className="bg-gradient-to-b from-brand-50 to-white">
         <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 md:grid-cols-2 md:items-center">
           <motion.div initial="hidden" animate="show" variants={stagger}>
-            <motion.h1 variants={fadeUp} className="text-5xl font-extrabold leading-tight text-ink-900">
+            <motion.h1 variants={fadeUp} className="text-5xl font-extrabold leading-tight tracking-tight text-ink-900">
               Build Smarter.
               <br />
               Build Better.
@@ -88,13 +88,13 @@ export default function Home() {
               <Link
                 to="/get-started"
                 onClick={() => trackEvent("cta_click", { cta: "get_started_hero" })}
-                className="rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition hover:bg-brand-600"
+                className="rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
               >
                 Get Started →
               </Link>
               <Link
                 to="/marketplace"
-                className="rounded-lg border-2 border-brand-500 px-6 py-3 font-semibold text-brand-500 transition hover:bg-brand-50"
+                className="rounded-lg border-2 border-brand-500 px-6 py-3 font-semibold text-brand-500 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-50"
               >
                 Explore Marketplace
               </Link>
@@ -108,12 +108,16 @@ export default function Home() {
             className="relative overflow-hidden rounded-2xl shadow-xl"
           >
             <img
-              src="https://images.unsplash.com/photo-1541976590-713941681591?w=1000&q=80"
+              src="https://images.unsplash.com/photo-1717960331841-a36791e8d2f5?w=1000&q=80"
               alt="Construction site"
               loading="lazy"
               decoding="async"
               className="h-96 w-full object-cover"
             />
+            {/* Directional overlay - darker on the left edge (nearest the
+                headline/copy column) fading to transparent, so the image
+                leads the eye back toward the text instead of away from it. */}
+            <div className="absolute inset-0 bg-gradient-to-r from-brand-900/40 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 bg-black/50 p-5 text-white">
               <p className="text-xl font-bold">Expert-Verified Results</p>
               <p className="text-sm text-slate-200">Professional guidance every step</p>
@@ -155,7 +159,8 @@ export default function Home() {
             <motion.div
               key={c.title}
               variants={fadeUp}
-              className="rounded-2xl border border-slate-100 bg-slate-50 p-8 transition hover:-translate-y-1 hover:shadow-lg"
+              whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
+              className="rounded-2xl border border-slate-100 bg-slate-50 p-8 transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg"
             >
               <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-xl ${c.bg} text-2xl`}>
                 {c.icon}
@@ -206,7 +211,7 @@ export default function Home() {
               <Link
                 to="/estimator"
                 onClick={() => trackEvent("cta_click", { cta: "try_estimator" })}
-                className="mt-8 inline-block rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition hover:bg-brand-600"
+                className="mt-8 inline-block rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
               >
                 Try the Estimator →
               </Link>
@@ -258,7 +263,8 @@ export default function Home() {
         >
           <motion.div
             variants={fadeUp}
-            className="rounded-2xl bg-gradient-to-br from-brand-700 to-brand-400 p-10 text-white transition hover:-translate-y-1 hover:shadow-xl"
+            whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
+            className="group rounded-2xl bg-brand-gradient p-10 text-white transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-xl"
           >
             <MapPin className="h-8 w-8" />
             <h3 className="mt-4 text-2xl font-bold">Property Marketplace</h3>
@@ -266,14 +272,18 @@ export default function Home() {
               Explore houses, commercial properties, and land plots across Rwanda. Filter by
               location, price, and type.
             </p>
-            <Link to="/marketplace" className="mt-6 inline-block font-semibold hover:underline">
+            <Link
+              to="/marketplace"
+              className="mt-6 inline-flex items-center gap-1 font-semibold transition-transform duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:underline group-hover:translate-x-1"
+            >
               Browse Properties →
             </Link>
           </motion.div>
 
           <motion.div
             variants={fadeUp}
-            className="rounded-2xl bg-gradient-to-br from-brand-900 to-brand-600 p-10 text-white transition hover:-translate-y-1 hover:shadow-xl"
+            whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
+            className="group rounded-2xl bg-brand-gradient p-10 text-white transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-xl"
           >
             <Users className="h-8 w-8" />
             <h3 className="mt-4 text-2xl font-bold">Expert Directory</h3>
@@ -281,7 +291,10 @@ export default function Home() {
               Find and connect with verified construction professionals. Read reviews and
               book consultations.
             </p>
-            <Link to="/experts" className="mt-6 inline-block font-semibold hover:underline">
+            <Link
+              to="/experts"
+              className="mt-6 inline-flex items-center gap-1 font-semibold transition-transform duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:underline group-hover:translate-x-1"
+            >
               Find Experts →
             </Link>
           </motion.div>
@@ -290,13 +303,13 @@ export default function Home() {
 
       {/* Ready-Made & Custom Plans */}
       <section className="bg-gradient-to-b from-brand-50 to-white py-20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 md:grid-cols-2 md:items-center">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-start gap-10 px-6 md:grid-cols-2">
           <motion.img
             initial={{ opacity: 0, x: -40 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.6 }}
-            src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1000&q=80"
+            src="https://images.unsplash.com/photo-1756245994848-1eb2be3b9b63?w=1000&q=80"
             alt="A completed house built from a CivilBridge plan"
             loading="lazy"
             decoding="async"
@@ -334,7 +347,7 @@ export default function Home() {
               <Link
                 to="/plans"
                 onClick={() => trackEvent("cta_click", { cta: "view_plans" })}
-                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition hover:bg-brand-600"
+                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
               >
                 View Plans <ArrowRight className="h-4 w-4" />
               </Link>
@@ -378,7 +391,7 @@ export default function Home() {
               <Link
                 to="/ai-studio"
                 onClick={() => trackEvent("cta_click", { cta: "open_ai_studio" })}
-                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition hover:bg-brand-600"
+                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
               >
                 Open AI Studio <ArrowRight className="h-4 w-4" />
               </Link>
@@ -390,7 +403,7 @@ export default function Home() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.6 }}
-            src="https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1000&q=80"
+            src="https://images.unsplash.com/photo-1779900275257-aaadab6d9285?w=1000&q=80"
             alt="Aerial view of a mixed-use development"
             loading="lazy"
             decoding="async"
@@ -400,7 +413,7 @@ export default function Home() {
       </section>
 
       {/* Built on Trust & Quality */}
-      <section className="bg-gradient-to-br from-ink-900 via-brand-800 to-brand-600 py-20 text-white">
+      <section className="bg-brand-gradient py-20 text-white">
         <div className="mx-auto max-w-7xl px-6 text-center">
           <motion.h2
             initial="hidden"
@@ -482,7 +495,7 @@ export default function Home() {
                 alt={p.title}
                 loading="lazy"
                 decoding="async"
-                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                className="h-full w-full object-cover transition-transform duration-300 ease-[cubic-bezier(.22,.61,.36,1)] group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
               <p className="absolute bottom-4 left-4 text-lg font-bold text-white">{p.title}</p>
@@ -498,7 +511,7 @@ export default function Home() {
       </section>
 
       {/* Final CTA */}
-      <section className="bg-gradient-to-r from-brand-600 to-brand-400 py-20 text-center text-white">
+      <section className="bg-brand-gradient py-20 text-center text-white">
         <div className="mx-auto max-w-3xl px-6">
           <motion.h2
             initial="hidden"
@@ -525,21 +538,21 @@ export default function Home() {
             whileInView="show"
             viewport={{ once: true, amount: 0.5 }}
             variants={fadeUp}
-            className="mt-8 flex flex-wrap justify-center gap-4"
+            className="mt-8 flex flex-col items-center gap-3"
           >
             <Link
-              to="/estimator"
-              onClick={() => trackEvent("cta_click", { cta: "get_free_estimate" })}
-              className="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-brand-600 transition hover:bg-brand-50"
+              to="/get-started"
+              onClick={() => trackEvent("cta_click", { cta: "get_started_closing_band" })}
+              className="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-brand-600 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-50"
             >
-              Get Free Estimate <ArrowRight className="h-4 w-4" />
+              Get Started — It's Free <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              to="/get-started"
-              onClick={() => trackEvent("cta_click", { cta: "sign_up_footer_cta" })}
-              className="rounded-lg border-2 border-white/70 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
+              to="/sign-in"
+              onClick={() => trackEvent("cta_click", { cta: "sign_in_closing_band" })}
+              className="text-sm font-medium text-brand-50 underline-offset-4 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:text-white hover:underline"
             >
-              Sign Up
+              Already have an account? Sign in
             </Link>
           </motion.div>
         </div>

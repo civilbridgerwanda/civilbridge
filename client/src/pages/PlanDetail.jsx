@@ -156,14 +156,14 @@ export default function PlanDetail() {
 
           <Link
             to="/estimator"
-            className="mt-6 block rounded-lg bg-brand-500 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-brand-600"
+            className="mt-6 block rounded-lg bg-brand-500 py-2.5 text-center text-sm font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
           >
             Get a Cost Estimate
           </Link>
           <button
             type="button"
             onClick={() => setShowInquiry(true)}
-            className="mt-3 block w-full rounded-lg border border-slate-300 py-2.5 text-center text-sm font-semibold text-ink-900 transition hover:bg-slate-50"
+            className="mt-3 block w-full rounded-lg border border-slate-300 py-2.5 text-center text-sm font-semibold text-ink-900 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-slate-50"
           >
             Talk to an Expert
           </button>
@@ -180,7 +180,7 @@ export default function PlanDetail() {
               <Link
                 key={p.id}
                 to={`/plans/${p.id}`}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:shadow-lg"
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="relative" style={{ aspectRatio: "4 / 3" }}>
                   {p.image_url ? (

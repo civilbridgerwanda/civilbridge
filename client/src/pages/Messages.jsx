@@ -309,7 +309,7 @@ export default function Messages() {
                   type="submit"
                   disabled={!input.trim() || sending}
                   aria-label="Send"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white transition hover:bg-brand-600 disabled:opacity-40"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-40"
                 >
                   <Send className="h-4 w-4" />
                 </button>

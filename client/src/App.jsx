@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import MainLayout from "./components/MainLayout";
 import DashboardShell from "./components/DashboardShell";
 import PageLoader from "./components/PageLoader";
+import { AIStudioSkeleton } from "./components/Skeleton";
 import RequireAdmin from "./components/RequireAdmin";
 import RequireAuth from "./components/RequireAuth";
 import Home from "./pages/Home";
@@ -34,7 +35,8 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
-const StaticPage = lazy(() => import("./pages/StaticPage"));
+const Docs = lazy(() => import("./pages/Docs"));
+const Help = lazy(() => import("./pages/Help"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SignIn = lazy(() => import("./pages/SignIn"));
 const SignUp = lazy(() => import("./pages/SignUp"));
@@ -42,12 +44,6 @@ const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const OAuthCallback = lazy(() => import("./pages/OAuthCallback"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
-
-const staticPages = [
-  { path: "/docs", title: "Documentation", description: "Guides for using the CivilBridge platform." },
-  { path: "/help", title: "Help Center", description: "Answers to common CivilBridge questions." },
-  { path: "/blog", title: "Blog", description: "News and insights from CivilBridge." },
-];
 
 export default function App() {
   usePageTracking();
@@ -94,12 +90,21 @@ export default function App() {
           <Route path="/plans" element={<Plans />} />
           <Route path="/plans/:id" element={<PlanDetail />} />
           <Route path="/estimator" element={<Estimator />} />
-          <Route path="/ai-studio" element={<AIStudio />} />
+          <Route
+            path="/ai-studio"
+            element={
+              <Suspense fallback={<AIStudioSkeleton />}>
+                <AIStudio />
+              </Suspense>
+            }
+          />
           <Route path="/about" element={<About />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/docs" element={<Docs />} />
+          <Route path="/help" element={<Help />} />
           <Route
             path="/list-property"
             element={
@@ -116,9 +121,6 @@ export default function App() {
               </RequireAuth>
             }
           />
-          {staticPages.map((p) => (
-            <Route key={p.path} path={p.path} element={<StaticPage title={p.title} description={p.description} />} />
-          ))}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

@@ -24,7 +24,7 @@ export default function ContactSupportButton({ className }) {
       label="Contact Support"
       className={
         className ||
-        "inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-ink-900 transition hover:bg-slate-50"
+        "inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-ink-900 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-slate-50"
       }
     />
   );

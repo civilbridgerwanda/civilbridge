@@ -74,7 +74,7 @@ export default function Settings() {
       <button
         type="button"
         onClick={handleLogout}
-        className="mt-6 flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-red-600"
+        className="mt-6 flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-slate-50 hover:text-red-600"
       >
         <LogOut className="h-4 w-4" />
         Sign Out

@@ -6,14 +6,7 @@ export default function Privacy() {
       <Seo title="Privacy Policy" description="How CivilBridge handles your data." path="/privacy" />
 
       <h1 className="text-4xl font-extrabold text-ink-900">Privacy Policy</h1>
-      <p className="mt-2 text-sm text-slate-400">Last updated: {new Date().toLocaleDateString()}</p>
-
-      <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        <strong>Note:</strong> this is a starting-point policy reflecting what CivilBridge's
-        code actually collects and does today. Have it reviewed by a lawyer before relying
-        on it for real users, especially regarding Rwanda's data protection law and any
-        other jurisdictions your users are in.
-      </div>
+      <p className="mt-2 text-sm text-tertiary">Last updated: {new Date().toLocaleDateString()}</p>
 
       <div className="mt-8 space-y-8 text-slate-600">
         <section>

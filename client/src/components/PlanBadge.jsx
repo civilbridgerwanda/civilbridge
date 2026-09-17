@@ -24,7 +24,7 @@ export function UpgradeSuggestion({ plan, className }) {
       to="/pricing"
       className={
         className ||
-        "flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-500 to-brand-700 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+        "flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-500 to-brand-700 px-4 py-3 text-sm font-semibold text-white transition-opacity duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:opacity-90"
       }
     >
       <Sparkles className="h-4 w-4 shrink-0" />

@@ -203,8 +203,9 @@ export default function Estimator() {
                   key={m.value}
                   type="button"
                   variants={fadeUp}
+                  whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
                   onClick={() => selectMethod(m.value)}
-                  className={`rounded-2xl border-2 bg-white p-8 text-left transition hover:-translate-y-1 hover:shadow-lg ${
+                  className={`rounded-2xl border-2 bg-white p-8 text-left transition-[border-color,box-shadow] duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg ${
                     active ? "border-brand-500 ring-2 ring-brand-100" : "border-slate-200"
                   }`}
                 >
@@ -431,7 +432,7 @@ export default function Estimator() {
 
                 <button
                   disabled={submitting}
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-3 font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60"
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-3 font-semibold text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-60"
                 >
                   <Sparkles className="h-4 w-4" />
                   {submitting ? "Submitting…" : "Generate Estimate"}

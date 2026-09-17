@@ -332,44 +332,49 @@ VALUES
    'https://i.pravatar.cc/300?img=13', 'Kigali', 407);
 
 -- Sample data
+-- Each image below is a real, geotagged Kigali/Rwanda photo (verified against
+-- the location metadata on its Unsplash detail page - not just keyword search
+-- relevance, which returns plenty of mismatched results). Every image_url in
+-- this file is used on exactly one row; see the "duplicate image_url" check
+-- in migrate.js, which fails the migration if that ever stops being true.
 INSERT IGNORE INTO properties (id, title, description, property_type, price, city, district, size_sqm, bedrooms, bathrooms, image_url, view_count)
 VALUES
   (UUID(), 'Modern 4-Bedroom House', 'Newly built family home with an open-plan living area and secure parking.', 'house', 85000000, 'Kigali', 'Gasabo', 350, 4, 3,
-    'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80', 412),
+    'https://images.unsplash.com/photo-1565349479047-d6211d4efc90?w=800&q=80', 412),
   (UUID(), 'Luxury Villa with Pool', 'High-end villa with a private pool, landscaped garden, and staff quarters.', 'house', 150000000, 'Kigali', 'Nyarutarama', 600, 6, 5,
-    'https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800&q=80', 587),
+    'https://images.unsplash.com/photo-1756245994834-61974c290b61?w=800&q=80', 587),
   (UUID(), 'Prime Land - 0.8 Acres', 'Serviced land plot close to the main road, ready to build.', 'land', 45000000, 'Kigali', 'Gacuriro', 3237, NULL, NULL,
-    'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80', 203),
+    'https://images.unsplash.com/photo-1727797716658-469836019c90?w=800&q=80', 203),
   (UUID(), 'Commercial Complex', 'Multi-unit commercial building suited for retail or office space.', 'commercial', 280000000, 'Kigali', 'Kimihurura', 1200, NULL, NULL,
-    'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&q=80', 298),
+    'https://images.unsplash.com/photo-1648708511872-5426c0f29c27?w=800&q=80', 298),
   (UUID(), 'Cozy 3-Bedroom Home', 'Comfortable starter home in a quiet residential neighborhood.', 'house', 52000000, 'Kigali', 'Remera', 220, 3, 2,
-    'https://images.unsplash.com/photo-1541976590-713941681591?w=800&q=80', 156),
+    'https://images.unsplash.com/photo-1708772565588-33785e13aa46?w=800&q=80', 156),
   (UUID(), 'Executive 5-Bedroom Villa', 'Spacious executive villa with a home office and rooftop terrace.', 'house', 120000000, 'Kigali', 'Kacyiru', 480, 5, 4,
-    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80', 344);
+    'https://images.unsplash.com/photo-1756245994882-cf32d49fde5a?w=800&q=80', 344);
 
 -- Sample building plans
 INSERT IGNORE INTO plans (id, title, plan_type, price, city, bedrooms, bathrooms, size_sqm, rating, badge, is_prime_location, image_url, view_count)
 VALUES
   (UUID(), '4-Bedroom Family House', 'house', 58000000, 'Kimihurura', 4, 3, 280, 4.0, 'new', TRUE,
-    'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80', 298),
+    'https://images.unsplash.com/photo-1708772565599-2c4e4b3ed9db?w=800&q=80', 298),
   (UUID(), 'Contemporary 3-Bedroom Villa', 'house', 62000000, 'Gacuriro', 3, 2, 240, 5.0, 'hot', FALSE,
-    'https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800&q=80', 456),
+    'https://images.unsplash.com/photo-1717960331841-a36791e8d2f5?w=800&q=80', 456),
   (UUID(), '1 Acre Prime Land', 'land', 55000000, 'Rusororo', NULL, NULL, 4047, 4.0, 'new', FALSE,
-    'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80', 187),
+    'https://images.unsplash.com/photo-1779900275257-aaadab6d9285?w=800&q=80', 187),
   (UUID(), 'Compact 2-Bedroom Starter Home', 'house', 38000000, 'Nyamirambo', 2, 1, 140, 5.0, NULL, FALSE,
-    'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80', 321),
+    'https://images.unsplash.com/photo-1756245994848-1eb2be3b9b63?w=800&q=80', 321),
   (UUID(), 'Commercial Building Plan', 'commercial', 180000000, 'City Center', NULL, NULL, 1500, 5.0, 'hot', TRUE,
-    'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&q=80', 209),
+    'https://images.unsplash.com/photo-1687986261123-b17f08f2796c?w=800&q=80', 209),
   (UUID(), 'Modern 1-Bedroom Apartment', 'apartment', 28000000, 'Kacyiru', 1, 1, 65, 4.5, NULL, TRUE,
-    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80', 143),
+    'https://images.unsplash.com/photo-1672597238213-fe76a82b50cb?w=800&q=80', 143),
   (UUID(), 'Duplex 6-Bedroom Family Home', 'house', 95000000, 'Nyarutarama', 6, 4, 420, 4.5, NULL, TRUE,
-    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80', 178),
+    'https://images.unsplash.com/photo-1689013398932-b576a11e07a1?w=800&q=80', 178),
   (UUID(), 'Half-Acre Residential Plot', 'land', 30000000, 'Bugesera', NULL, NULL, 2023, 3.5, NULL, FALSE,
-    'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80', 92),
+    'https://images.unsplash.com/photo-1647891684895-15c5b831fde1?w=800&q=80', 92),
   (UUID(), 'Retail Storefront Plan', 'commercial', 65000000, 'Remera', NULL, NULL, 180, 4.0, NULL, FALSE,
-    'https://images.unsplash.com/photo-1541976590-713941681591?w=800&q=80', 118),
+    'https://images.unsplash.com/photo-1668875438994-4388304392ef?w=800&q=80', 118),
   (UUID(), 'Minimalist 2-Bedroom Bungalow', 'house', 42000000, 'Kimironko', 2, 2, 160, 4.5, 'new', FALSE,
-    'https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800&q=80', 205);
+    'https://images.unsplash.com/photo-1786795468102-84cd1ac41cd8?w=800&q=80', 205);
 
 -- Sample client users, so the sample payments below have realistic payers
 -- (password_hash is a placeholder - these aren't real, loginable accounts)

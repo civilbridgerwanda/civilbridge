@@ -3,6 +3,10 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        display: ["Sora", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
       colors: {
         // Derived directly from the CivilBridge bridge logo's navy (#03204C)
         brand: {
@@ -28,6 +32,23 @@ export default {
           400: "#f6c453",
           500: "#eba82c",
         },
+        // Dimmer than slate-600 (body copy) - reserved for captions,
+        // timestamps, and other genuinely secondary/meta text.
+        tertiary: "#94a3b8",
+      },
+      // Tinted toward the brand navy instead of Tailwind's neutral-black
+      // default shadow scale. Only the keys actually used across the site
+      // (sm/lg/xl) are overridden.
+      boxShadow: {
+        sm: "0 1px 2px 0 rgba(3, 32, 76, 0.06)",
+        lg: "0 10px 20px -5px rgba(3, 32, 76, 0.16), 0 4px 8px -4px rgba(3, 32, 76, 0.1)",
+        xl: "0 20px 30px -8px rgba(3, 32, 76, 0.2), 0 8px 12px -6px rgba(3, 32, 76, 0.12)",
+      },
+      // The navy-to-slate diagonal used on the Marketplace/Expert Directory
+      // cards, promoted to a shared utility so it reads as one deliberate
+      // surface treatment instead of one-off gradients per section.
+      backgroundImage: {
+        "brand-gradient": "linear-gradient(to bottom right, #010d1e, #031b41, #4f6382)",
       },
     },
   },

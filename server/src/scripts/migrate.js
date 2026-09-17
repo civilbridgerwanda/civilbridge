@@ -32,6 +32,25 @@ const columnBackfills = [
   "ALTER TABLE users MODIFY COLUMN role ENUM('client', 'expert', 'property_owner', 'admin') NOT NULL DEFAULT 'client'",
 ];
 
+// Catches a regression where a property/plan gets seeded with an image_url
+// already used by another row - each listing is presented as distinct and
+// individually priced, so its photo should be too. Reads image_url straight
+// out of the raw INSERT statements in the seed half of schema.sql (rather
+// than querying the seeded table), so it catches a duplicate introduced in
+// schema.sql even before anyone runs it against a database.
+function assertNoDuplicateImages(seedSql) {
+  const urls = [...seedSql.matchAll(/'(https:\/\/images\.unsplash\.com\/[^']+)'/g)].map((m) => m[1]);
+  const counts = new Map();
+  for (const url of urls) counts.set(url, (counts.get(url) || 0) + 1);
+  const duplicates = [...counts.entries()].filter(([, count]) => count > 1);
+  if (duplicates.length > 0) {
+    const lines = duplicates.map(([url, count]) => `  - ${url} (used ${count} times)`);
+    throw new Error(
+      `Seed data reuses the same image across multiple listings - every property/plan needs its own photo:\n${lines.join("\n")}`
+    );
+  }
+}
+
 /**
  * Runs sql/schema.sql against MySQL directly - no `mysql` CLI required.
  * This is the "npm run migrate" command; it's what actually creates the
@@ -57,6 +76,14 @@ async function migrate() {
   }
   const schemaSql = sql.slice(0, markerIndex);
   const seedSql = sql.slice(markerIndex);
+
+  try {
+    assertNoDuplicateImages(seedSql);
+  } catch (err) {
+    console.error(`❌ ${err.message}`);
+    process.exitCode = 1;
+    return;
+  }
 
   console.log(`Connecting to MySQL at ${process.env.DB_HOST || "127.0.0.1"}:${process.env.DB_PORT || 3306}...`);
 

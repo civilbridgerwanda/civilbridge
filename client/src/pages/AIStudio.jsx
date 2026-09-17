@@ -188,7 +188,7 @@ export default function AIStudio() {
             <button
               type="button"
               onClick={startNewConversation}
-              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
+              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
             >
               New Session
             </button>
@@ -231,7 +231,7 @@ export default function AIStudio() {
                     <Link
                       key={qa.title}
                       to={qa.to}
-                      className="rounded-xl border border-slate-200 p-4 transition hover:border-brand-300 hover:bg-brand-50"
+                      className="rounded-xl border border-slate-200 p-4 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:border-brand-300 hover:bg-brand-50"
                     >
                       {content}
                     </Link>
@@ -240,7 +240,7 @@ export default function AIStudio() {
                       key={qa.title}
                       type="button"
                       onClick={qa.onClick}
-                      className="rounded-xl border border-slate-200 p-4 text-left transition hover:border-brand-300 hover:bg-brand-50"
+                      className="rounded-xl border border-slate-200 p-4 text-left transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:border-brand-300 hover:bg-brand-50"
                     >
                       {content}
                     </button>
@@ -255,7 +255,7 @@ export default function AIStudio() {
                     key={prompt}
                     type="button"
                     onClick={() => sendMessage(prompt)}
-                    className="block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-left text-sm text-slate-700 transition hover:border-brand-300 hover:bg-brand-50"
+                    className="block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-left text-sm text-slate-700 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:border-brand-300 hover:bg-brand-50"
                   >
                     {prompt}
                   </button>
@@ -276,7 +276,7 @@ export default function AIStudio() {
                 type="submit"
                 disabled={!input.trim() || sending}
                 aria-label="Send"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white transition hover:bg-brand-600 disabled:opacity-40"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-40"
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -297,7 +297,7 @@ export default function AIStudio() {
             <button
               type="button"
               onClick={startNewConversation}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
             >
               <Plus className="h-4 w-4" />
               New Conversation

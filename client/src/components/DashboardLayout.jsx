@@ -39,7 +39,7 @@ export default function DashboardLayout({ navItems, searchPlaceholder, onSearch,
               end={item.end}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                `flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
                   isActive ? "bg-brand-50 text-brand-600" : "text-slate-600 hover:bg-slate-50"
                 }`
               }

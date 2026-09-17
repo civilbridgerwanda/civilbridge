@@ -42,7 +42,7 @@ export default function SocialLoginButtons({ mode = "signin" }) {
         <a
           key={p.id}
           href={`${API_URL}/auth/${p.id}`}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 py-2.5 text-sm font-semibold text-ink-900 transition hover:bg-slate-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:border-brand-300 hover:bg-brand-50 hover:shadow-md"
         >
           {p.icon}
           {verb} {p.label}

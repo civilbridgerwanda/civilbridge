@@ -115,7 +115,7 @@ export default function SignIn() {
 
         <button
           disabled={submitting}
-          className="w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60"
+          className="w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-60"
         >
           {submitting ? "Signing in…" : "Sign In"}
         </button>

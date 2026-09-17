@@ -43,3 +43,34 @@ export function SkeletonGrid({ Card, count = 6, className = "" }) {
     </div>
   );
 }
+
+// Matches the shape of the real AI Studio page (header bar, chat panel,
+// history sidebar) so there's no blank/white gap between the route-level
+// Suspense fallback and the page's own content finishing its first render.
+export function AIStudioSkeleton() {
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-3">
+          <SkeletonLine className="h-9 w-9 rounded-lg" />
+          <div>
+            <SkeletonLine className="h-4 w-24" />
+            <SkeletonLine className="mt-2 h-3 w-32" />
+          </div>
+        </div>
+        <SkeletonLine className="h-9 w-28 rounded-lg" />
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="h-[55vh] min-h-[360px] rounded-2xl border border-slate-200 bg-white p-6">
+          <SkeletonLine className="h-4 w-2/3" />
+          <SkeletonLine className="mt-4 h-4 w-1/2" />
+        </div>
+        <div className="h-fit rounded-2xl border border-slate-200 bg-white p-5">
+          <SkeletonLine className="h-4 w-16" />
+          <SkeletonLine className="mt-4 h-9 w-full rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -24,7 +24,10 @@ const PLANS = [
     monthly: 15000,
     annual: 150000,
     highlighted: true,
-    cta: { label: "Get Started", to: "/get-started" },
+    // Softened from "Get Started" - this tier has a specific paid price
+    // that the disclosure above says isn't final yet, so an urgent
+    // sign-up CTA right under that disclosure reads as a contradiction.
+    cta: { label: "Join the Waitlist", to: "/get-started" },
     features: [
       "Everything in Starter",
       "Unlimited expert messaging",
@@ -82,7 +85,7 @@ export default function Pricing() {
           <button
             type="button"
             onClick={() => setBilling("monthly")}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
               billing === "monthly" ? "bg-brand-500 text-white" : "text-slate-500 hover:text-ink-900"
             }`}
           >
@@ -91,7 +94,7 @@ export default function Pricing() {
           <button
             type="button"
             onClick={() => setBilling("annual")}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
               billing === "annual" ? "bg-brand-500 text-white" : "text-slate-500 hover:text-ink-900"
             }`}
           >
@@ -137,7 +140,7 @@ export default function Pricing() {
 
               <Link
                 to={plan.cta.to}
-                className={`mt-8 block rounded-lg py-2.5 text-center text-sm font-semibold transition ${
+                className={`mt-8 block rounded-lg py-2.5 text-center text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
                   plan.highlighted
                     ? "bg-brand-500 text-white hover:bg-brand-600"
                     : "border border-slate-300 text-ink-900 hover:bg-slate-50"

@@ -164,7 +164,7 @@ export default function ExpertDetail() {
             ))}
           </div>
           <span className="text-sm font-semibold text-ink-900">{formatRating(expert.rating)}</span>
-          <span className="text-sm text-slate-400">({expert.review_count} reviews)</span>
+          <span className="text-sm text-tertiary">({expert.review_count} reviews)</span>
         </div>
 
         <div className="mt-6 grid gap-6 sm:grid-cols-2">
@@ -193,7 +193,7 @@ export default function ExpertDetail() {
           <MessageButton
             userId={expert.user_id}
             label={`Message ${expert.full_name?.split(" ")[0]}`}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-3 text-sm font-semibold text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-60"
           />
         </div>
       </div>
@@ -268,7 +268,7 @@ export default function ExpertDetail() {
                   </div>
                 </div>
                 {r.comment && <p className="mt-2 text-sm text-slate-600">{r.comment}</p>}
-                <p className="mt-2 text-xs text-slate-400">{new Date(r.created_at).toLocaleDateString()}</p>
+                <p className="mt-2 text-xs text-tertiary">{new Date(r.created_at).toLocaleDateString()}</p>
               </div>
             ))}
           </div>
@@ -285,7 +285,7 @@ export default function ExpertDetail() {
               <Link
                 key={e.id}
                 to={`/experts/${e.id}`}
-                className="rounded-2xl border border-slate-200 p-5 transition hover:-translate-y-1 hover:shadow-lg"
+                className="rounded-2xl border border-slate-200 p-5 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="flex items-center gap-3">
                   {e.avatar_url ? (

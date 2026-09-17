@@ -35,7 +35,7 @@ export default function Navbar() {
           CivilBridge
         </Link>
 
-        <nav className="hidden items-center gap-8 text-sm font-medium text-slate-700 md:flex">
+        <nav className="hidden items-center gap-5 text-sm font-medium text-slate-700 lg:flex">
           {links.map((link) => (
             <NavLink
               key={link.to}
@@ -118,7 +118,7 @@ export default function Navbar() {
           </div>
         ) : (
           <div className="flex items-center gap-4">
-            <Link to="/sign-in" className="text-sm font-medium text-slate-700 hover:text-brand-600">
+            <Link to="/sign-in" className="whitespace-nowrap text-sm font-medium text-slate-700 hover:text-brand-600">
               Sign In
             </Link>
             <Link

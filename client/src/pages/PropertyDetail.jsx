@@ -163,7 +163,7 @@ export default function PropertyDetail() {
           ) : (
             <Link
               to="/experts"
-              className="mt-6 block rounded-lg bg-brand-500 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-brand-600"
+              className="mt-6 block rounded-lg bg-brand-500 py-2.5 text-center text-sm font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
             >
               Talk to an Expert
             </Link>
@@ -179,7 +179,7 @@ export default function PropertyDetail() {
               <Link
                 key={p.id}
                 to={`/marketplace/${p.id}`}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:shadow-lg"
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="relative" style={{ aspectRatio: "4 / 3" }}>
                   {p.image_url ? (

@@ -66,7 +66,7 @@ export default function PropertyOwnerDashboard() {
         </div>
         <Link
           to="/list-property"
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
+          className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
         >
           <Plus className="h-4 w-4" /> Add Property
         </Link>
@@ -103,7 +103,7 @@ export default function PropertyOwnerDashboard() {
           {properties.length ? (
             <div className="grid gap-5 sm:grid-cols-2">
               {properties.map((p) => (
-                <div key={p.id} className="overflow-hidden rounded-2xl border border-slate-200 transition hover:shadow-md">
+                <div key={p.id} className="overflow-hidden rounded-2xl border border-slate-200 transition-shadow duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-md">
                   <div className="relative" style={{ aspectRatio: "16 / 9" }}>
                     {p.image_url ? (
                       <img src={p.image_url} alt={p.title} className="h-full w-full object-cover" />

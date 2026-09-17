@@ -365,7 +365,7 @@ export default function AdminDashboard() {
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`shrink-0 px-4 py-2.5 text-sm font-semibold transition ${
+            className={`shrink-0 px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
               tab === t
                 ? "border-b-2 border-brand-500 text-brand-600"
                 : "text-slate-500 hover:text-ink-900"

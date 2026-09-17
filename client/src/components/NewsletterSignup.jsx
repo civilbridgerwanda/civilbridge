@@ -50,7 +50,7 @@ export default function NewsletterSignup() {
         </div>
         <button
           disabled={status === "submitting"}
-          className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60"
+          className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-400 disabled:opacity-60"
         >
           {status === "submitting" ? "…" : "Subscribe"}
         </button>

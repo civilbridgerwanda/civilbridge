@@ -20,7 +20,6 @@ const columns = [
       { label: "Documentation", to: "/docs" },
       { label: "Help Center", to: "/help" },
       { label: "Expert Directory", to: "/experts" },
-      { label: "Blog", to: "/blog" },
     ],
   },
   {
@@ -63,7 +62,7 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="text-slate-400 transition hover:text-white"
+                  className="text-slate-400 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:text-white"
                 >
                   <Icon className="h-5 w-5" />
                 </a>
@@ -81,7 +80,7 @@ export default function Footer() {
               <ul className="mt-4 space-y-3 text-sm">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <Link to={link.to} className="text-slate-400 transition hover:text-white">
+                    <Link to={link.to} className="text-slate-400 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:text-white">
                       {link.label}
                     </Link>
                   </li>
