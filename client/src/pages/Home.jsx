@@ -28,19 +28,19 @@ const stats = [
 const featuredProperties = [
   {
     title: "Estate Development",
-    image: "https://images.unsplash.com/photo-1689013398932-b576a11e07a1?w=800&q=80",
+    image: "/images/home/estate-development.jpg",
   },
   {
     title: "Prime Land Plots",
-    image: "https://images.unsplash.com/photo-1786795468102-84cd1ac41cd8?w=800&q=80",
+    image: "/images/home/prime-land-plots.jpg",
   },
   {
     title: "New Construction",
-    image: "https://images.unsplash.com/photo-1648708511872-5426c0f29c27?w=800&q=80",
+    image: "/images/home/new-construction.jpg",
   },
   {
     title: "Modern Residential Complex",
-    image: "https://images.unsplash.com/photo-1672597238213-fe76a82b50cb?w=800&q=80",
+    image: "/images/home/modern-residential.jpg",
   },
 ];
 
@@ -113,8 +113,8 @@ export default function Home() {
             className="relative overflow-hidden rounded-2xl shadow-xl"
           >
             <img
-              src="https://images.unsplash.com/photo-1717960331841-a36791e8d2f5?w=1000&q=80"
-              alt="Construction site"
+              src="/images/home/hero-construction.jpg"
+              alt="A modern building in Kigali, Rwanda"
               loading="eager"
               fetchpriority="high"
               decoding="async"
@@ -232,7 +232,7 @@ export default function Home() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.6 }}
-            src="https://images.unsplash.com/photo-1521791136064-7986c2920216?w=1000&q=80"
+            src="/images/home/engineers-reviewing-plans.jpg"
             alt="Engineers reviewing plans"
             loading="lazy"
             decoding="async"
@@ -318,8 +318,8 @@ export default function Home() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.6 }}
-            src="https://images.unsplash.com/photo-1756245994848-1eb2be3b9b63?w=1000&q=80"
-            alt="A completed house built from a CivilBridge plan"
+            src="/images/home/architectural-blueprint.jpg"
+            alt="Architectural blueprint for a building plan"
             loading="lazy"
             decoding="async"
             className="rounded-2xl shadow-lg"
@@ -412,8 +412,8 @@ export default function Home() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.6 }}
-            src="https://images.unsplash.com/photo-1779900275257-aaadab6d9285?w=1000&q=80"
-            alt="Aerial view of a mixed-use development"
+            src="/images/home/construction-tablet-tech.jpg"
+            alt="Construction workers reviewing plans on a tablet"
             loading="lazy"
             decoding="async"
             className="rounded-2xl shadow-lg"

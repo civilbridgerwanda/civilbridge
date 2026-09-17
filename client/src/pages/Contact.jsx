@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, CheckCircle2, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import { Mail, CheckCircle2, Facebook, Twitter, Instagram, Linkedin, MapPin, Clock, Briefcase, HeadphonesIcon, Newspaper } from "lucide-react";
 import { api } from "../lib/api";
 import Seo from "../components/Seo";
 
@@ -8,6 +8,39 @@ const socials = [
   { Icon: Twitter, href: "https://twitter.com", label: "Twitter" },
   { Icon: Instagram, href: "https://instagram.com", label: "Instagram" },
   { Icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
+];
+
+const reasons = [
+  {
+    icon: HeadphonesIcon,
+    title: "Platform support",
+    body: "Trouble with an estimate, a listing, or your account — we'll help you sort it out.",
+  },
+  {
+    icon: Briefcase,
+    title: "Partnerships",
+    body: "Real estate agencies, material suppliers, or engineering firms looking to work with CivilBridge.",
+  },
+  {
+    icon: Newspaper,
+    title: "Press & media",
+    body: "Writing about construction tech in Rwanda? We're happy to talk.",
+  },
+];
+
+const faqs = [
+  {
+    q: "How quickly will I hear back?",
+    a: "We typically respond within 1 business day. For account or payment issues, include your account email so we can look it up faster.",
+  },
+  {
+    q: "I'm having a technical problem with the platform — is this the right place?",
+    a: "Yes. Describe what you were doing and what went wrong, and we'll follow up directly. For common questions, the Help Center may also have a faster answer.",
+  },
+  {
+    q: "Can experts or property owners reach out here too?",
+    a: "Yes — this form works for clients, verified experts, and property owners alike, whether it's a support issue or a partnership idea.",
+  },
 ];
 
 export default function Contact() {
@@ -51,6 +84,21 @@ export default function Contact() {
       <p className="mt-2 max-w-xl text-slate-500">
         Questions about a project, a partnership, or the platform itself — send us a message.
       </p>
+
+      <div className="mt-10 grid gap-6 sm:grid-cols-3">
+        {reasons.map((r) => {
+          const Icon = r.icon;
+          return (
+            <div key={r.title} className="rounded-2xl border border-slate-200 p-5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                <Icon className="h-4.5 w-4.5" />
+              </span>
+              <p className="mt-3 font-bold text-ink-900">{r.title}</p>
+              <p className="mt-1 text-sm text-slate-500">{r.body}</p>
+            </div>
+          );
+        })}
+      </div>
 
       <div className="mt-10 grid gap-10 lg:grid-cols-2">
         <div>
@@ -107,8 +155,11 @@ export default function Contact() {
           >
             <Mail className="h-4 w-4" /> hello@civil-bridge.com
           </a>
-          <p className="mt-4 text-sm text-slate-500">
-            We typically respond within 1 business day.
+          <p className="mt-3 flex items-center gap-3 text-sm text-slate-600">
+            <MapPin className="h-4 w-4 text-slate-400" /> Kigali, Rwanda
+          </p>
+          <p className="mt-3 flex items-center gap-3 text-sm text-slate-600">
+            <Clock className="h-4 w-4 text-slate-400" /> We typically respond within 1 business day
           </p>
 
           <div className="mt-8 border-t border-slate-200 pt-6">
@@ -128,6 +179,18 @@ export default function Contact() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="mt-16">
+        <h2 className="text-xl font-bold text-ink-900">Frequently asked</h2>
+        <div className="mt-6 space-y-4">
+          {faqs.map((f) => (
+            <div key={f.q} className="rounded-2xl border border-slate-200 p-6">
+              <p className="font-semibold text-ink-900">{f.q}</p>
+              <p className="mt-2 text-sm text-slate-500">{f.a}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
