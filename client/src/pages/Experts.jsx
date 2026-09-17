@@ -270,7 +270,7 @@ export default function Experts() {
           <SkeletonGrid
             Card={ExpertCardSkeleton}
             count={6}
-            className="mt-8 grid gap-6 md:grid-cols-3"
+            className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
           />
         )}
 
@@ -279,7 +279,7 @@ export default function Experts() {
             initial="hidden"
             animate="show"
             variants={stagger}
-            className="mt-8 grid gap-6 md:grid-cols-3"
+            className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
           >
             {visibleExperts.map((e) => (
               <motion.div

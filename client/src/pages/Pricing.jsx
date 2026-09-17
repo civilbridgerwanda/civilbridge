@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Sparkles } from "lucide-react";
 import Seo from "../components/Seo";
+import BillingToggle from "../components/BillingToggle";
 
 const PLANS = [
   {
@@ -81,29 +82,10 @@ export default function Pricing() {
           finalized before billing goes live.
         </p>
 
-        <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1">
-          <button
-            type="button"
-            onClick={() => setBilling("monthly")}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
-              billing === "monthly" ? "bg-brand-500 text-white" : "text-slate-500 hover:text-ink-900"
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            onClick={() => setBilling("annual")}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
-              billing === "annual" ? "bg-brand-500 text-white" : "text-slate-500 hover:text-ink-900"
-            }`}
-          >
-            Annual <span className="text-xs">(save ~17%)</span>
-          </button>
-        </div>
+        <BillingToggle value={billing} onChange={setBilling} />
       </div>
 
-      <div className="mt-12 grid gap-6 md:grid-cols-3">
+      <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {PLANS.map((plan) => {
           const price = billing === "monthly" ? plan.monthly : plan.annual;
           return (

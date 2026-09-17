@@ -195,7 +195,7 @@ export default function AIStudio() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="mt-6 grid gap-6 md:grid-cols-[1fr_260px] lg:grid-cols-[1fr_320px]">
           {/* Chat panel */}
           <div className="rounded-2xl border border-slate-200 bg-white">
             <div className="h-[55vh] min-h-[360px] overflow-y-auto p-6">

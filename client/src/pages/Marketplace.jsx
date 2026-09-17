@@ -334,7 +334,7 @@ export default function Marketplace() {
           <SkeletonGrid
             Card={PropertyCardSkeleton}
             count={6}
-            className="mt-8 grid gap-6 md:grid-cols-3"
+            className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
           />
         )}
 
@@ -343,7 +343,7 @@ export default function Marketplace() {
             initial="hidden"
             animate="show"
             variants={stagger}
-            className="mt-8 grid gap-6 md:grid-cols-3"
+            className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
           >
             {visibleProperties.map((p) => (
               <motion.div
