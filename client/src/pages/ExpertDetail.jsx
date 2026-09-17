@@ -193,7 +193,7 @@ export default function ExpertDetail() {
           <MessageButton
             userId={expert.user_id}
             label={`Message ${expert.full_name?.split(" ")[0]}`}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-3 text-sm font-semibold text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-3 text-sm font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-60"
           />
         </div>
       </div>
@@ -247,7 +247,7 @@ export default function ExpertDetail() {
             {reviewNotice && <p className="mt-2 text-sm text-slate-500">{reviewNotice}</p>}
             <button
               disabled={submittingReview}
-              className="mt-3 flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
+              className="mt-3 flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-60"
             >
               {submittingReview && <Loader2 className="h-4 w-4 animate-spin" />}
               {submittingReview ? "Submitting…" : "Submit Review"}

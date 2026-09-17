@@ -55,7 +55,7 @@ export default function Help() {
         </p>
         <Link
           to="/contact"
-          className="mt-4 inline-block rounded-lg bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+          className="mt-4 inline-block rounded-lg bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
         >
           Contact Support
         </Link>

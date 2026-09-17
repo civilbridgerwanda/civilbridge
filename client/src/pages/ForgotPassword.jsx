@@ -80,7 +80,7 @@ export default function ForgotPassword() {
 
           <button
             disabled={submitting}
-            className="w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-60"
+            className="w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-60"
           >
             {submitting ? "Sending…" : "Send Reset Code"}
           </button>
@@ -126,7 +126,7 @@ export default function ForgotPassword() {
 
           <button
             disabled={submitting || code.length !== 6}
-            className="w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-60"
+            className="w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-60"
           >
             {submitting ? "Resetting…" : "Reset Password"}
           </button>

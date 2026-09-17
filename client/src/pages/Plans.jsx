@@ -227,7 +227,7 @@ export default function Plans() {
             className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
               showMoreFilters
                 ? "border-brand-500 bg-brand-50 text-brand-600"
-                : "border-slate-300 text-ink-900 hover:bg-slate-50"
+                : "border-slate-300 bg-slate-50 text-ink-900 hover:bg-slate-100"
             }`}
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -389,7 +389,7 @@ export default function Plans() {
             <button
               type="button"
               onClick={() => setVisibleCount((c) => c + 5)}
-              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
             >
               Load More Plans
             </button>

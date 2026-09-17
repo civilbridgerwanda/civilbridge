@@ -43,6 +43,11 @@ export default {
         sm: "0 1px 2px 0 rgba(3, 32, 76, 0.06)",
         lg: "0 10px 20px -5px rgba(3, 32, 76, 0.16), 0 4px 8px -4px rgba(3, 32, 76, 0.1)",
         xl: "0 20px 30px -8px rgba(3, 32, 76, 0.2), 0 8px 12px -6px rgba(3, 32, 76, 0.12)",
+        // Named tokens for elevation parity across cards/overlays, so later
+        // usages reference one name instead of a hand-rolled inline value.
+        "card-rest": "0 1px 2px rgba(3,32,76,.06), 0 1px 3px rgba(3,32,76,.08)",
+        "card-featured": "0 10px 20px -5px rgba(3,32,76,.16), 0 4px 8px -4px rgba(3,32,76,.1)",
+        overlay: "0 20px 40px -8px rgba(3,32,76,.2), 0 8px 16px -8px rgba(3,32,76,.12)",
       },
       // The navy-to-slate diagonal used on the Marketplace/Expert Directory
       // cards, promoted to a shared utility so it reads as one deliberate

@@ -10,7 +10,7 @@ export default function NotFound() {
       <p className="mt-4 text-slate-500">The page you're looking for doesn't exist or has moved.</p>
       <Link
         to="/"
-        className="mt-8 inline-block rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+        className="mt-8 inline-block rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
       >
         Back to Home
       </Link>

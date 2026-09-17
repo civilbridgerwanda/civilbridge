@@ -7,6 +7,11 @@ import {
   ArrowRight,
   MapPin,
   Users,
+  Calculator,
+  ShieldCheck,
+  TrendingUp,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { trackEvent } from "../lib/analytics";
 import { fadeUp, stagger } from "../lib/motion";
@@ -41,19 +46,19 @@ const featuredProperties = [
 
 const helpCards = [
   {
-    icon: "🧮",
+    icon: Calculator,
     bg: "bg-brand-500",
     title: "Accurate Cost Estimation",
     body: "Get realistic construction cost estimates based on Rwanda-specific pricing, materials, and labor rates. Make financially safe decisions from day one.",
   },
   {
-    icon: "🛡️",
+    icon: ShieldCheck,
     bg: "bg-brand-400",
     title: "Expert Verification",
     body: "Every plan and estimate can be reviewed by verified engineers and architects. AI accelerates, professionals validate.",
   },
   {
-    icon: "📈",
+    icon: TrendingUp,
     bg: "bg-brand-700",
     title: "Full Project Journey",
     body: "From initial budget analysis to completed construction, track every phase with transparency and professional oversight.",
@@ -88,7 +93,7 @@ export default function Home() {
               <Link
                 to="/get-started"
                 onClick={() => trackEvent("cta_click", { cta: "get_started_hero" })}
-                className="rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+                className="rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
               >
                 Get Started →
               </Link>
@@ -110,7 +115,8 @@ export default function Home() {
             <img
               src="https://images.unsplash.com/photo-1717960331841-a36791e8d2f5?w=1000&q=80"
               alt="Construction site"
-              loading="lazy"
+              loading="eager"
+              fetchpriority="high"
               decoding="async"
               className="h-96 w-full object-cover"
             />
@@ -118,7 +124,7 @@ export default function Home() {
                 headline/copy column) fading to transparent, so the image
                 leads the eye back toward the text instead of away from it. */}
             <div className="absolute inset-0 bg-gradient-to-r from-brand-900/40 via-transparent to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 bg-black/50 p-5 text-white">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent p-5 pt-16 text-white">
               <p className="text-xl font-bold">Expert-Verified Results</p>
               <p className="text-sm text-slate-200">Professional guidance every step</p>
             </div>
@@ -155,20 +161,23 @@ export default function Home() {
           variants={stagger}
           className="mt-12 grid gap-6 text-left md:grid-cols-3"
         >
-          {helpCards.map((c) => (
-            <motion.div
-              key={c.title}
-              variants={fadeUp}
-              whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
-              className="rounded-2xl border border-slate-100 bg-slate-50 p-8 transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg"
-            >
-              <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-xl ${c.bg} text-2xl`}>
-                {c.icon}
-              </div>
-              <h3 className="text-xl font-bold text-ink-900">{c.title}</h3>
-              <p className="mt-3 text-slate-600">{c.body}</p>
-            </motion.div>
-          ))}
+          {helpCards.map((c) => {
+            const Icon = c.icon;
+            return (
+              <motion.div
+                key={c.title}
+                variants={fadeUp}
+                whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
+                className="rounded-2xl border border-slate-100 bg-slate-50 p-8 transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg"
+              >
+                <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-xl ${c.bg} text-white`}>
+                  <Icon className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-bold text-ink-900">{c.title}</h3>
+                <p className="mt-3 text-slate-600">{c.body}</p>
+              </motion.div>
+            );
+          })}
         </motion.div>
       </section>
 
@@ -191,13 +200,13 @@ export default function Home() {
 
             <ul className="mt-8 space-y-6">
               {[
-                { icon: "✨", title: "Upload or Describe", body: "Upload existing plans or describe your vision conversationally." },
-                { icon: "⚡", title: "AI Analysis", body: "Intelligent processing generates Bill of Quantities and cost estimates." },
-                { icon: "✔️", title: "Professional Review", body: "Get expert validation and approval before execution." },
+                { icon: Sparkles, title: "Upload or Describe", body: "Upload existing plans or describe your vision conversationally." },
+                { icon: Zap, title: "AI Analysis", body: "Intelligent processing generates Bill of Quantities and cost estimates." },
+                { icon: CheckCircle2, title: "Professional Review", body: "Get expert validation and approval before execution." },
               ].map((step) => (
                 <motion.li key={step.title} variants={fadeUp} className="flex gap-4">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-white">
-                    {step.icon}
+                    <step.icon className="h-4.5 w-4.5" />
                   </span>
                   <div>
                     <p className="font-semibold text-ink-900">{step.title}</p>
@@ -211,7 +220,7 @@ export default function Home() {
               <Link
                 to="/estimator"
                 onClick={() => trackEvent("cta_click", { cta: "try_estimator" })}
-                className="mt-8 inline-block rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+                className="mt-8 inline-block rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
               >
                 Try the Estimator →
               </Link>
@@ -347,7 +356,7 @@ export default function Home() {
               <Link
                 to="/plans"
                 onClick={() => trackEvent("cta_click", { cta: "view_plans" })}
-                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
               >
                 View Plans <ArrowRight className="h-4 w-4" />
               </Link>
@@ -391,7 +400,7 @@ export default function Home() {
               <Link
                 to="/ai-studio"
                 onClick={() => trackEvent("cta_click", { cta: "open_ai_studio" })}
-                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
               >
                 Open AI Studio <ArrowRight className="h-4 w-4" />
               </Link>

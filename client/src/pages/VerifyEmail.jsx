@@ -62,7 +62,7 @@ export default function VerifyEmail() {
         <button
           type="button"
           onClick={() => navigate("/")}
-          className="mt-6 w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+          className="mt-6 w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
         >
           Back to Home
         </button>
@@ -100,7 +100,7 @@ export default function VerifyEmail() {
 
         <button
           disabled={submitting || code.length !== 6}
-          className="w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-60"
+          className="w-full rounded-lg bg-brand-500 py-3 font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-60"
         >
           {submitting ? "Verifying…" : "Verify Email"}
         </button>

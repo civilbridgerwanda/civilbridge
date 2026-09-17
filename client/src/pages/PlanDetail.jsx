@@ -156,14 +156,14 @@ export default function PlanDetail() {
 
           <Link
             to="/estimator"
-            className="mt-6 block rounded-lg bg-brand-500 py-2.5 text-center text-sm font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+            className="mt-6 block rounded-lg bg-brand-500 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
           >
             Get a Cost Estimate
           </Link>
           <button
             type="button"
             onClick={() => setShowInquiry(true)}
-            className="mt-3 block w-full rounded-lg border border-slate-300 py-2.5 text-center text-sm font-semibold text-ink-900 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-slate-50"
+            className="mt-3 block w-full rounded-lg border border-slate-300 bg-slate-50 py-2.5 text-center text-sm font-semibold text-ink-900 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-slate-100"
           >
             Talk to an Expert
           </button>

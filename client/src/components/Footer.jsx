@@ -76,7 +76,7 @@ export default function Footer() {
 
           {columns.map((col) => (
             <div key={col.heading}>
-              <p className="font-bold text-white">{col.heading}</p>
+              <h3 className="font-bold text-white">{col.heading}</h3>
               <ul className="mt-4 space-y-3 text-sm">
                 {col.links.map((link) => (
                   <li key={link.label}>
@@ -90,7 +90,7 @@ export default function Footer() {
           ))}
         </div>
 
-        <div className="mt-12 border-t border-white/10 pt-6 text-center text-sm text-slate-500">
+        <div className="mt-12 border-t border-white/10 pt-6 text-center text-sm text-slate-400">
           © {new Date().getFullYear()} CivilBridge. All rights reserved. Made for Rwanda and East Africa.
         </div>
       </div>

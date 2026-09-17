@@ -174,7 +174,7 @@ export default function Experts() {
             className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
               showMoreFilters || activeExtraFilters
                 ? "border-brand-500 bg-brand-50 text-brand-600"
-                : "border-slate-300 text-ink-900 hover:bg-slate-50"
+                : "border-slate-300 bg-slate-50 text-ink-900 hover:bg-slate-100"
             }`}
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -286,7 +286,7 @@ export default function Experts() {
                 key={e.id}
                 variants={fadeUp}
                 whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
-                className="rounded-2xl border border-slate-200 p-6 transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg"
+                className="rounded-2xl border border-slate-200 p-6 shadow-sm transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg"
               >
                 <div className="flex items-center gap-4">
                   <div className="relative shrink-0">
@@ -339,7 +339,7 @@ export default function Experts() {
 
                 <Link
                   to={`/experts/${e.id}`}
-                  className="mt-5 block rounded-lg bg-brand-500 py-2.5 text-center font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+                  className="mt-5 block rounded-lg bg-brand-500 py-2.5 text-center font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
                 >
                   View Profile
                 </Link>
@@ -359,7 +359,7 @@ export default function Experts() {
             <button
               type="button"
               onClick={() => setVisibleCount((c) => c + 3)}
-              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
             >
               Load More Experts
             </button>

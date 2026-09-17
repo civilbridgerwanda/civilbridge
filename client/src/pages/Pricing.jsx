@@ -98,7 +98,7 @@ export default function Pricing() {
               billing === "annual" ? "bg-brand-500 text-white" : "text-slate-500 hover:text-ink-900"
             }`}
           >
-            Annual <span className="text-xs opacity-80">(save ~17%)</span>
+            Annual <span className="text-xs">(save ~17%)</span>
           </button>
         </div>
       </div>
@@ -110,7 +110,9 @@ export default function Pricing() {
             <div
               key={plan.name}
               className={`relative flex flex-col rounded-2xl border p-8 ${
-                plan.highlighted ? "border-brand-500 shadow-lg ring-2 ring-brand-100" : "border-slate-200"
+                plan.highlighted
+                  ? "border-brand-500 shadow-card-featured ring-2 ring-brand-100"
+                  : "border-slate-200 shadow-card-rest"
               }`}
             >
               {plan.highlighted && (
@@ -123,9 +125,16 @@ export default function Pricing() {
               <p className="mt-1 text-sm text-slate-500">{plan.tagline}</p>
 
               <div className="mt-6">
-                <span className="text-3xl font-extrabold text-ink-900">{formatPrice(price)}</span>
+                {price !== null && price > 0 ? (
+                  <span className="text-3xl font-extrabold text-ink-900">
+                    <span className="mr-1 align-top text-lg font-bold text-slate-500">RWF</span>
+                    {price.toLocaleString()}
+                  </span>
+                ) : (
+                  <span className="text-3xl font-extrabold text-ink-900">{formatPrice(price)}</span>
+                )}
                 {price !== null && price > 0 && (
-                  <span className="text-sm text-slate-400"> / {billing === "monthly" ? "month" : "year"}</span>
+                  <span className="text-sm text-slate-500"> / {billing === "monthly" ? "month" : "year"}</span>
                 )}
               </div>
 
@@ -142,8 +151,8 @@ export default function Pricing() {
                 to={plan.cta.to}
                 className={`mt-8 block rounded-lg py-2.5 text-center text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
                   plan.highlighted
-                    ? "bg-brand-500 text-white hover:bg-brand-600"
-                    : "border border-slate-300 text-ink-900 hover:bg-slate-50"
+                    ? "bg-brand-500 text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
+                    : "border border-slate-300 bg-slate-50 text-ink-900 hover:bg-slate-100"
                 }`}
               >
                 {plan.cta.label}

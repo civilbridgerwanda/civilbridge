@@ -152,7 +152,7 @@ export default function Messages() {
           <button
             type="button"
             onClick={() => setShowPicker((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
           >
             <Plus className="h-4 w-4" /> New Message
           </button>
@@ -160,7 +160,7 @@ export default function Messages() {
           <button
             type="button"
             onClick={handleMessageSupport}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-ink-900 hover:bg-slate-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-semibold text-ink-900 hover:bg-slate-100"
           >
             <LifeBuoy className="h-4 w-4" /> Message Support
           </button>
@@ -309,7 +309,7 @@ export default function Messages() {
                   type="submit"
                   disabled={!input.trim() || sending}
                   aria-label="Send"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white transition-[background-color,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600 disabled:opacity-40"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-40"
                 >
                   <Send className="h-4 w-4" />
                 </button>

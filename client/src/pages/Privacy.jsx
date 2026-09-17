@@ -6,9 +6,9 @@ export default function Privacy() {
       <Seo title="Privacy Policy" description="How CivilBridge handles your data." path="/privacy" />
 
       <h1 className="text-4xl font-extrabold text-ink-900">Privacy Policy</h1>
-      <p className="mt-2 text-sm text-tertiary">Last updated: {new Date().toLocaleDateString()}</p>
+      <p className="mt-2 text-sm text-tertiary">Last updated: September 17, 2026</p>
 
-      <div className="mt-8 space-y-8 text-slate-600">
+      <div className="mt-8 max-w-prose space-y-8 text-slate-600">
         <section>
           <h2 className="text-xl font-bold text-ink-900">Information we collect</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5">

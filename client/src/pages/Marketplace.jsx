@@ -251,7 +251,7 @@ export default function Marketplace() {
             className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
               showMoreFilters
                 ? "border-brand-500 bg-brand-50 text-brand-600"
-                : "border-slate-300 text-ink-900 hover:bg-slate-50"
+                : "border-slate-300 bg-slate-50 text-ink-900 hover:bg-slate-100"
             }`}
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -350,7 +350,7 @@ export default function Marketplace() {
                 key={p.id}
                 variants={fadeUp}
                 whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
-                className={`overflow-hidden rounded-2xl border bg-white transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg ${
+                className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg ${
                   justAdded === p.id ? "border-brand-500 ring-2 ring-brand-200" : "border-slate-200"
                 }`}
               >
@@ -405,7 +405,7 @@ export default function Marketplace() {
             <button
               type="button"
               onClick={() => setVisibleCount((c) => c + 3)}
-              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-brand-600"
+              className="rounded-lg bg-brand-500 px-8 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
             >
               Load More
             </button>
