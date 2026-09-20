@@ -7,6 +7,10 @@ import Seo from "../components/Seo";
 import { SkeletonGrid, PropertyCardSkeleton } from "../components/Skeleton";
 import { fadeUp, stagger } from "../lib/motion";
 import { RWANDA_LOCATIONS } from "../lib/locations";
+import { useAuth } from "../lib/AuthContext";
+import AuthGate from "../components/AuthGate";
+import { isAuthGateDismissed, dismissAuthGate } from "../lib/authGate";
+import { getPlanBadge } from "../lib/isNew";
 
 const pills = [
   { value: "all", label: "All Plans" },
@@ -57,9 +61,15 @@ function badgeStyle(badge) {
 }
 
 export default function Plans() {
+  const { user, loading: authLoading } = useAuth();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAuthGate, setShowAuthGate] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user && !isAuthGateDismissed()) setShowAuthGate(true);
+  }, [authLoading, user]);
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -108,10 +118,22 @@ export default function Plans() {
   const visiblePlans = useMemo(() => plans.slice(0, visibleCount), [plans, visibleCount]);
 
   return (
-    <>
+    <div className="relative">
+      {showAuthGate && (
+        <AuthGate
+          variant="soft"
+          from="/plans"
+          title="Sign in for the full experience"
+          message="Browsing is always free. Sign in to open a plan's full details, drawings, and media."
+          onDismiss={() => {
+            dismissAuthGate();
+            setShowAuthGate(false);
+          }}
+        />
+      )}
       <Seo
-        title="Plans"
-        description="Browse professionally designed building plans and properties across Rwanda, or generate a custom plan with AI."
+        title="Architectural Building Plans"
+        description="Review professionally designed architectural building plans across Rwanda, complete with drawings and structural details, or generate a custom plan with AI."
         path="/plans"
       />
 
@@ -124,7 +146,7 @@ export default function Plans() {
             transition={{ duration: 0.5 }}
             className="text-4xl font-extrabold md:text-5xl"
           >
-            Building Plans &amp; Properties
+            Architectural Building Plans
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -132,8 +154,8 @@ export default function Plans() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="mt-3 max-w-xl text-brand-100"
           >
-            Browse professionally designed plans and properties across Rwanda. Find your
-            perfect match or generate a custom plan.
+            Review ready-made architectural plans - drawings, renders, and structural
+            details - and find your perfect design, or generate a custom plan with AI.
           </motion.p>
         </div>
       </section>
@@ -286,7 +308,11 @@ export default function Plans() {
         {/* Results count + sort */}
         <div className="mt-6 flex items-center justify-between border-b border-slate-200 pb-4">
           <p className="text-sm text-slate-500">
-            {loading ? "Searching…" : `${plans.length} ${plans.length === 1 ? "plan" : "plans"} available`}
+            {loading
+              ? "Searching…"
+              : user?.role === "admin"
+                ? `${plans.length} ${plans.length === 1 ? "plan" : "plans"} available`
+                : "Showing results"}
           </p>
           <label className="flex items-center gap-2 text-sm text-slate-500">
             Sort by:
@@ -343,11 +369,11 @@ export default function Plans() {
                         <MapPin className="h-8 w-8" />
                       </div>
                     )}
-                    {p.badge && (
+                    {getPlanBadge(p) && (
                       <span
-                        className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold capitalize text-white ${badgeStyle(p.badge)}`}
+                        className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold capitalize text-white ${badgeStyle(getPlanBadge(p))}`}
                       >
-                        {p.badge}
+                        {getPlanBadge(p)}
                       </span>
                     )}
                   </div>
@@ -413,6 +439,6 @@ export default function Plans() {
           </Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }

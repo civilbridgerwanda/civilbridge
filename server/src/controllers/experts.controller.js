@@ -1,5 +1,17 @@
 import { Op } from "sequelize";
+import { createHash } from "crypto";
 import { Expert, User, ExpertReview, ExpertPortfolio, PlanInquiry, Plan } from "../models/index.js";
+
+// Gravatar's URL scheme is just an MD5 hash of the lowercased, trimmed
+// email - `d=404` makes it return a real 404 instead of a default
+// silhouette when the person has no Gravatar, so the client can detect
+// "no Gravatar" and fall through to the next tier in the avatar fallback
+// (Gravatar -> their own uploaded avatar_url -> initials).
+function gravatarUrl(email) {
+  if (!email) return null;
+  const hash = createHash("md5").update(email.trim().toLowerCase()).digest("hex");
+  return `https://www.gravatar.com/avatar/${hash}?d=404&s=200`;
+}
 
 const orderMap = {
   rating: [
@@ -24,6 +36,7 @@ function serialize(e) {
     review_count: e.review_count,
     completed_projects: e.completed_projects,
     avatar_url: e.avatar_url,
+    gravatar_url: gravatarUrl(e.User?.email),
     city: e.city,
     view_count: e.view_count,
     full_name: e.User?.full_name,

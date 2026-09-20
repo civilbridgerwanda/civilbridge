@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
-import { Loader2, Plus, Building2, MapPin, Trash2, Eye, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Link, Navigate, useLocation } from "react-router-dom";
+import { Loader2, Plus, Building2, MapPin, Trash2, Eye, TrendingUp, CheckCircle2, AlertCircle } from "lucide-react";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
+import { getRoleTheme } from "../../lib/roleTheme";
 import Seo from "../../components/Seo";
+
+const theme = getRoleTheme("property_owner");
 
 const statusStyles = {
   available: "bg-emerald-50 text-emerald-600",
@@ -13,6 +16,7 @@ const statusStyles = {
 
 export default function PropertyOwnerDashboard() {
   const { user, token } = useAuth();
+  const location = useLocation();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,6 +51,7 @@ export default function PropertyOwnerDashboard() {
       total: properties.length,
       totalViews: properties.reduce((sum, p) => sum + (p.view_count || 0), 0),
       available: properties.filter((p) => p.status === "available").length,
+      pendingApproval: properties.filter((p) => !p.is_approved).length,
     }),
     [properties]
   );
@@ -66,11 +71,28 @@ export default function PropertyOwnerDashboard() {
         </div>
         <Link
           to="/list-property"
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
+          className={`inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${theme.button}`}
         >
           <Plus className="h-4 w-4" /> Add Property
         </Link>
       </div>
+
+      {location.state?.justListed && (
+        <p className="mt-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Your listing has been submitted and will appear in the marketplace once our team approves it.
+        </p>
+      )}
+
+      {stats.pendingApproval > 0 && (
+        <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+          <p className="text-sm text-amber-800">
+            {stats.pendingApproval} listing{stats.pendingApproval === 1 ? "" : "s"} awaiting CivilBridge team approval
+            before {stats.pendingApproval === 1 ? "it" : "they"} appear{stats.pendingApproval === 1 ? "s" : ""} in the
+            Marketplace.
+          </p>
+        </div>
+      )}
 
       {loading && (
         <div className="flex items-center justify-center py-24 text-slate-400">
@@ -90,7 +112,7 @@ export default function PropertyOwnerDashboard() {
               const Icon = c.icon;
               return (
                 <div key={c.label} className="rounded-2xl border border-slate-200 p-5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                  <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${theme.iconChip}`}>
                     <Icon className="h-4.5 w-4.5" />
                   </span>
                   <p className="mt-3 text-2xl font-extrabold text-ink-900">{c.value}</p>
@@ -108,7 +130,7 @@ export default function PropertyOwnerDashboard() {
                     {p.image_url ? (
                       <img src={p.image_url} alt={p.title} className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-brand-50 text-brand-300">
+                      <div className="flex h-full w-full items-center justify-center bg-violet-50 text-violet-300">
                         <Building2 className="h-10 w-10" />
                       </div>
                     )}
@@ -131,13 +153,18 @@ export default function PropertyOwnerDashboard() {
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                    <p className="mt-2 font-bold text-brand-500">
+                    <p className={`mt-2 font-bold ${theme.text}`}>
                       {p.currency} {Number(p.price).toLocaleString()}
                     </p>
-                    <div className="mt-3 flex items-center gap-2">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusStyles[p.status] || statusStyles.available}`}>
                         {p.status}
                       </span>
+                      {!p.is_approved && (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                          Pending Approval
+                        </span>
+                      )}
                       <span className="flex items-center gap-1 text-xs text-slate-400">
                         <Eye className="h-3 w-3" /> {p.view_count} views
                       </span>
@@ -152,7 +179,7 @@ export default function PropertyOwnerDashboard() {
               <p className="mt-3 text-slate-500">You haven't listed any properties yet.</p>
               <Link
                 to="/list-property"
-                className="mt-4 inline-block rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
+                className={`mt-4 inline-block rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${theme.button}`}
               >
                 List Your First Property
               </Link>

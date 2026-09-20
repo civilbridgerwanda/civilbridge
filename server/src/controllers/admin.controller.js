@@ -10,11 +10,14 @@ import {
   AiConversation,
   Payment,
   Conversation,
+  Message,
   PlanInquiry,
 } from "../models/index.js";
 import { listAll as listAllPayments, updateStatus as updatePaymentStatus } from "./payments.controller.js";
 import { sendMail } from "../config/mailer.js";
 import { notify } from "../lib/notify.js";
+import { broadcastNewListing } from "../lib/broadcastListing.js";
+import { EVENTS } from "../sockets/index.js";
 
 export { listAllPayments, updatePaymentStatus };
 
@@ -210,7 +213,7 @@ export async function listUsers(req, res) {
 
     const users = await User.findAll({
       where,
-      attributes: ["id", "full_name", "email", "role", "phone", "email_verified", "is_suspended", "plan"],
+      attributes: ["id", "full_name", "email", "role", "phone", "email_verified", "is_suspended", "plan", "requested_plan"],
       order: [["id", "DESC"]],
       limit: 200,
     });
@@ -310,6 +313,10 @@ export async function updateUserPlan(req, res) {
     }
 
     user.plan = plan;
+    // Setting the plan directly (whatever it's set to) resolves any pending
+    // upgrade request - there's nothing left to approve or deny once an
+    // admin has acted on it.
+    user.requested_plan = null;
     await user.save();
 
     if (plan !== "starter") {
@@ -323,7 +330,7 @@ export async function updateUserPlan(req, res) {
 
     res.json({
       success: true,
-      data: { id: user.id, full_name: user.full_name, email: user.email, plan: user.plan },
+      data: { id: user.id, full_name: user.full_name, email: user.email, plan: user.plan, requested_plan: user.requested_plan },
     });
   } catch (err) {
     console.error(err);
@@ -401,6 +408,7 @@ export async function deleteUser(req, res) {
 export async function createProperty(req, res) {
   try {
     const property = await Property.create({ ...req.body, owner_id: req.body.owner_id || null });
+    broadcastNewListing({ kind: "property", title: property.title, id: property.id }).catch(() => {});
     res.status(201).json({ success: true, data: property });
   } catch (err) {
     console.error(err);
@@ -415,7 +423,10 @@ export async function updateProperty(req, res) {
     if (!property) {
       return res.status(404).json({ success: false, message: "Property not found" });
     }
-    const editable = ["title", "description", "property_type", "price", "city", "district", "size_sqm", "bedrooms", "bathrooms", "image_url", "status"];
+    const editable = [
+      "title", "description", "property_type", "price", "city", "district", "size_sqm",
+      "bedrooms", "bathrooms", "image_url", "images", "is_featured", "status",
+    ];
     for (const field of editable) {
       if (field in req.body) property[field] = req.body[field];
     }
@@ -424,6 +435,32 @@ export async function updateProperty(req, res) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to update property" });
+  }
+}
+
+// PATCH /api/admin/properties/:id/approve
+// The moment an owner-submitted listing (see properties.controller.js's
+// create()) actually goes live - this is where the "new listing" socket
+// event and newsletter broadcast fire, not at submission time.
+export async function approveProperty(req, res) {
+  try {
+    const property = await Property.findByPk(req.params.id);
+    if (!property) {
+      return res.status(404).json({ success: false, message: "Property not found" });
+    }
+    if (property.is_approved) {
+      return res.json({ success: true, data: property });
+    }
+    property.is_approved = true;
+    await property.save();
+
+    req.app.get("io").emit(EVENTS.PROPERTY_CREATED, property);
+    broadcastNewListing({ kind: "property", title: property.title, id: property.id }).catch(() => {});
+
+    res.json({ success: true, data: property });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Failed to approve property" });
   }
 }
 
@@ -448,6 +485,7 @@ export async function deleteProperty(req, res) {
 export async function createPlan(req, res) {
   try {
     const plan = await Plan.create(req.body);
+    broadcastNewListing({ kind: "plan", title: plan.title, id: plan.id }).catch(() => {});
     res.status(201).json({ success: true, data: plan });
   } catch (err) {
     console.error(err);
@@ -462,7 +500,10 @@ export async function updatePlan(req, res) {
     if (!plan) {
       return res.status(404).json({ success: false, message: "Plan not found" });
     }
-    const editable = ["title", "plan_type", "price", "city", "bedrooms", "bathrooms", "size_sqm", "rating", "badge", "is_prime_location", "image_url"];
+    const editable = [
+      "title", "plan_type", "price", "city", "bedrooms", "bathrooms", "size_sqm", "rating", "badge",
+      "is_prime_location", "image_url", "images", "document_url", "video_url", "zip_url", "license_price",
+    ];
     for (const field of editable) {
       if (field in req.body) plan[field] = req.body[field];
     }
@@ -634,5 +675,74 @@ export async function assignPlanInquiry(req, res) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to assign inquiry" });
+  }
+}
+
+// ---------- Conversation oversight (compliance/moderation) ----------
+// Read-only visibility into direct messaging between other users - the
+// business needs a way to check for policy violations or off-platform
+// deal-making without being a participant in the conversation itself.
+// Every other conversation endpoint (messages.controller.js) enforces a
+// participant-only check; these two are the one deliberate exception,
+// gated instead by requireAdmin at the router level.
+
+// GET /api/admin/conversations
+export async function listAllConversations(req, res) {
+  try {
+    const conversations = await Conversation.findAll({
+      include: [
+        { model: User, as: "userA", attributes: ["id", "full_name", "email", "role"] },
+        { model: User, as: "userB", attributes: ["id", "full_name", "email", "role"] },
+      ],
+      order: [["updated_at", "DESC"]],
+      limit: 200,
+    });
+
+    const conversationIds = conversations.map((c) => c.id);
+    const recentMessages = conversationIds.length
+      ? await Message.findAll({ where: { conversation_id: conversationIds }, order: [["created_at", "DESC"]] })
+      : [];
+    const lastMessageByConversation = {};
+    const messageCountByConversation = {};
+    for (const m of recentMessages) {
+      messageCountByConversation[m.conversation_id] = (messageCountByConversation[m.conversation_id] || 0) + 1;
+      if (!(m.conversation_id in lastMessageByConversation)) {
+        lastMessageByConversation[m.conversation_id] = m;
+      }
+    }
+
+    const data = conversations.map((c) => ({
+      id: c.id,
+      userA: c.userA,
+      userB: c.userB,
+      lastMessage: lastMessageByConversation[c.id]?.content || null,
+      messageCount: messageCountByConversation[c.id] || 0,
+      updatedAt: c.updated_at,
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Failed to fetch conversations" });
+  }
+}
+
+// GET /api/admin/conversations/:id
+export async function getConversationDetail(req, res) {
+  try {
+    const conversation = await Conversation.findByPk(req.params.id, {
+      include: [
+        { model: User, as: "userA", attributes: ["id", "full_name", "email", "role"] },
+        { model: User, as: "userB", attributes: ["id", "full_name", "email", "role"] },
+        { model: Message, as: "messages", order: [["created_at", "ASC"]] },
+      ],
+    });
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: "Conversation not found" });
+    }
+    res.json({ success: true, data: conversation });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Failed to fetch conversation" });
   }
 }

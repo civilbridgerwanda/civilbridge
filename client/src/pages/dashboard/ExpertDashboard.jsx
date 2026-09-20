@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   Plus,
   X,
+  AlertCircle,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -28,9 +29,12 @@ import {
 } from "recharts";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
+import { getRoleTheme } from "../../lib/roleTheme";
 import Seo from "../../components/Seo";
 import ContactSupportButton from "../../components/ContactSupportButton";
 import { PlanBadge, UpgradeSuggestion } from "../../components/PlanBadge";
+
+const theme = getRoleTheme("expert");
 
 function formatRating(rating) {
   const n = Number(rating);
@@ -40,7 +44,7 @@ function formatRating(rating) {
 const STATUS_COLORS = {
   ai_generated: "#8ea5c9", // brand-300-ish
   under_review: "#eba82c", // gold-500
-  verified: "#03204c", // brand-500
+  verified: "#0d9488", // teal-600 - this expert's own accent, not a shared status color
 };
 
 const STATUS_LABELS = {
@@ -185,6 +189,9 @@ export default function ExpertDashboard() {
     { icon: TrendingUp, label: "Total Verified", value: stats.totalVerified },
   ];
 
+  const newInquiryCount = assignedInquiries.filter((i) => i.status === "new").length;
+  const actionNeededCount = stats.pendingCount + newInquiryCount;
+
   // Users without any account-level "expert" role shouldn't land here.
   if (user && user.role !== "expert" && user.role !== "admin") {
     return <Navigate to="/join-as-expert" replace />;
@@ -213,6 +220,17 @@ export default function ExpertDashboard() {
 
       {!loading && !error && (
         <div className="mt-8 space-y-10">
+          {actionNeededCount > 0 && (
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+              <p className="text-sm text-amber-800">
+                {actionNeededCount} item{actionNeededCount === 1 ? "" : "s"} waiting on you -{" "}
+                {stats.pendingCount} estimate{stats.pendingCount === 1 ? "" : "s"} in your queue
+                {newInquiryCount > 0 && ` and ${newInquiryCount} new plan inquir${newInquiryCount === 1 ? "y" : "ies"}`}.
+              </p>
+            </div>
+          )}
+
           {profile ? (
             <div className="rounded-2xl border border-slate-200 p-6">
               <div className="flex items-start justify-between gap-4">
@@ -220,16 +238,16 @@ export default function ExpertDashboard() {
                   {profile.avatar_url ? (
                     <img src={profile.avatar_url} alt={profile.full_name} className="h-16 w-16 rounded-full object-cover" />
                   ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-xl font-bold text-brand-600">
+                    <div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold text-white ${theme.avatar}`}>
                       {profile.full_name?.[0]}
                     </div>
                   )}
                   <div>
                     <p className="flex items-center gap-1.5 text-lg font-bold text-ink-900">
                       {profile.full_name}
-                      {profile.is_verified && <BadgeCheck className="h-4 w-4 text-brand-500" />}
+                      {profile.is_verified && <BadgeCheck className={`h-4 w-4 ${theme.text}`} />}
                     </p>
-                    <p className="text-sm text-brand-500">{profile.specialty}</p>
+                    <p className={`text-sm ${theme.text}`}>{profile.specialty}</p>
                   </div>
                 </div>
                 <Link
@@ -264,7 +282,7 @@ export default function ExpertDashboard() {
                   <button
                     type="button"
                     onClick={() => setShowPortfolioForm((v) => !v)}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-brand-500 hover:underline"
+                    className={`flex items-center gap-1.5 text-sm font-semibold hover:underline ${theme.text}`}
                   >
                     {showPortfolioForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                     {showPortfolioForm ? "Cancel" : "Add Work"}
@@ -298,7 +316,7 @@ export default function ExpertDashboard() {
                     />
                     <button
                       disabled={savingPortfolio}
-                      className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-60"
+                      className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 disabled:opacity-60 ${theme.button}`}
                     >
                       {savingPortfolio && <Loader2 className="h-4 w-4 animate-spin" />}
                       {savingPortfolio ? "Saving…" : "Save"}
@@ -336,7 +354,7 @@ export default function ExpertDashboard() {
               <p className="text-slate-500">You haven't created an expert profile yet.</p>
               <Link
                 to="/join-as-expert"
-                className="mt-4 inline-block rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
+                className={`mt-4 inline-block rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${theme.button}`}
               >
                 Create Your Profile
               </Link>
@@ -350,7 +368,7 @@ export default function ExpertDashboard() {
                 const Icon = c.icon;
                 return (
                   <div key={c.label} className="rounded-2xl border border-slate-200 p-5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${theme.iconChip}`}>
                       <Icon className="h-4.5 w-4.5" />
                     </span>
                     <p className="mt-3 text-2xl font-extrabold text-ink-900">{c.value}</p>
@@ -372,7 +390,7 @@ export default function ExpertDashboard() {
                     <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} width={24} />
                     <Tooltip cursor={{ fill: "#f8fafc" }} />
-                    <Bar dataKey="reviews" fill="#03204c" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="reviews" fill="#0d9488" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -415,7 +433,7 @@ export default function ExpertDashboard() {
           {/* Assigned Plan Inquiries */}
           <section>
             <h2 className="flex items-center gap-2 text-lg font-bold text-ink-900">
-              <ClipboardCheck className="h-5 w-5 text-brand-500" /> Plans Assigned To You
+              <ClipboardCheck className={`h-5 w-5 ${theme.text}`} /> Plans Assigned To You
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               "Talk to an Expert" requests an admin has routed to you.
@@ -440,7 +458,7 @@ export default function ExpertDashboard() {
                           {i.full_name} ({i.email})
                         </td>
                         <td className="px-4 py-3">
-                          <a href={`https://wa.me/${i.whatsapp.replace(/[^\d]/g, "")}`} className="text-brand-500 hover:underline">
+                          <a href={`https://wa.me/${i.whatsapp.replace(/[^\d]/g, "")}`} className={`hover:underline ${theme.text}`}>
                             {i.whatsapp}
                           </a>
                         </td>
@@ -457,7 +475,7 @@ export default function ExpertDashboard() {
 
           <section>
             <h2 className="flex items-center gap-2 text-lg font-bold text-ink-900">
-              <Clock className="h-5 w-5 text-brand-500" /> Review Queue
+              <Clock className={`h-5 w-5 ${theme.text}`} /> Review Queue
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               Estimates awaiting expert review, plus ones you've already reviewed.
@@ -477,7 +495,11 @@ export default function ExpertDashboard() {
                   <tbody>
                     {queue.map((e) => (
                       <tr key={e.id} className="border-t border-slate-100">
-                        <td className="px-4 py-3 font-semibold text-ink-900">{e.project_name}</td>
+                        <td className="px-4 py-3 font-semibold text-ink-900">
+                          <Link to={`/estimates/${e.id}`} className={`hover:underline ${theme.hoverText}`}>
+                            {e.project_name}
+                          </Link>
+                        </td>
                         <td className="px-4 py-3 text-slate-500">{e.User?.full_name || "Guest"}</td>
                         <td className="px-4 py-3 capitalize text-slate-500">{e.status.replace("_", " ")}</td>
                         <td className="px-4 py-3">
@@ -497,7 +519,7 @@ export default function ExpertDashboard() {
                                 type="button"
                                 disabled={updatingId === e.id}
                                 onClick={() => handleReview(e.id, "verified")}
-                                className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
+                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${theme.button}`}
                               >
                                 Verify
                               </button>

@@ -21,7 +21,9 @@ const ExpertDetail = lazy(() => import("./pages/ExpertDetail"));
 const Plans = lazy(() => import("./pages/Plans"));
 const PlanDetail = lazy(() => import("./pages/PlanDetail"));
 const Estimator = lazy(() => import("./pages/Estimator"));
+const EstimateDetail = lazy(() => import("./pages/EstimateDetail"));
 const AIStudio = lazy(() => import("./pages/AIStudio"));
+const AISharedChat = lazy(() => import("./pages/AISharedChat"));
 const ListProperty = lazy(() => import("./pages/ListProperty"));
 const JoinAsExpert = lazy(() => import("./pages/JoinAsExpert"));
 const ClientDashboard = lazy(() => import("./pages/dashboard/ClientDashboard"));
@@ -59,6 +61,18 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/oauth-callback" element={<OAuthCallback />} />
 
+        {/* AI Studio: full-screen, distraction-free - no site navbar/footer,
+            own fixed-height layout with its own scroll regions. */}
+        <Route
+          path="/ai-studio"
+          element={
+            <Suspense fallback={<AIStudioSkeleton />}>
+              <AIStudio />
+            </Suspense>
+          }
+        />
+        <Route path="/ai-studio/shared/:token" element={<AISharedChat />} />
+
         {/* Dashboard shell: left sidebar + top bar (search, messages,
             notifications, profile) - its own layout, no marketing
             navbar/footer. DashboardShell itself enforces sign-in. */}
@@ -84,18 +98,32 @@ export default function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/marketplace" element={<Marketplace />} />
-          <Route path="/marketplace/:id" element={<PropertyDetail />} />
+          <Route
+            path="/marketplace/:id"
+            element={
+              <RequireAuth>
+                <PropertyDetail />
+              </RequireAuth>
+            }
+          />
           <Route path="/experts" element={<Experts />} />
           <Route path="/experts/:id" element={<ExpertDetail />} />
           <Route path="/plans" element={<Plans />} />
-          <Route path="/plans/:id" element={<PlanDetail />} />
+          <Route
+            path="/plans/:id"
+            element={
+              <RequireAuth>
+                <PlanDetail />
+              </RequireAuth>
+            }
+          />
           <Route path="/estimator" element={<Estimator />} />
           <Route
-            path="/ai-studio"
+            path="/estimates/:id"
             element={
-              <Suspense fallback={<AIStudioSkeleton />}>
-                <AIStudio />
-              </Suspense>
+              <RequireAuth>
+                <EstimateDetail />
+              </RequireAuth>
             }
           />
           <Route path="/about" element={<About />} />

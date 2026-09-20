@@ -4,6 +4,8 @@ import Modal from "../Modal";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { RWANDA_LOCATIONS } from "../../lib/locations";
+import ImageGalleryField from "./ImageGalleryField";
+import { firstImageUrl } from "../../lib/mediaType";
 
 export default function PropertyFormModal({ property, onClose, onSaved }) {
   const { token } = useAuth();
@@ -18,7 +20,8 @@ export default function PropertyFormModal({ property, onClose, onSaved }) {
     size_sqm: property?.size_sqm || "",
     bedrooms: property?.bedrooms || "",
     bathrooms: property?.bathrooms || "",
-    image_url: property?.image_url || "",
+    images: property?.images?.length ? property.images : property?.image_url ? [property.image_url] : [],
+    is_featured: property?.is_featured || false,
     status: property?.status || "available",
   });
   const [saving, setSaving] = useState(false);
@@ -35,6 +38,7 @@ export default function PropertyFormModal({ property, onClose, onSaved }) {
         size_sqm: form.size_sqm ? Number(form.size_sqm) : null,
         bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
         bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
+        image_url: firstImageUrl(form.images),
       };
       const saved = isEdit
         ? await api.adminUpdateProperty(property.id, payload, token)
@@ -144,14 +148,17 @@ export default function PropertyFormModal({ property, onClose, onSaved }) {
             />
           </div>
         </div>
-        <div>
-          <label className="block text-sm font-semibold text-ink-900">Image URL</label>
+        <ImageGalleryField images={form.images} onChange={(images) => setForm({ ...form, images })} />
+
+        <label className="flex items-center gap-2 text-sm font-semibold text-ink-900">
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-            value={form.image_url}
-            onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+            type="checkbox"
+            checked={form.is_featured}
+            onChange={(e) => setForm({ ...form, is_featured: e.target.checked })}
+            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-400"
           />
-        </div>
+          Feature on homepage
+        </label>
         <div>
           <label className="block text-sm font-semibold text-ink-900">Description</label>
           <textarea

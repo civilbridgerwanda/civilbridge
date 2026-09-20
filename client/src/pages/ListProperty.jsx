@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { Upload, File as FileIcon, X, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { RWANDA_LOCATIONS } from "../lib/locations";
 import { trackEvent } from "../lib/analytics";
 import Seo from "../components/Seo";
+import ImageGalleryField from "../components/admin/ImageGalleryField";
+import { firstImageUrl } from "../lib/mediaType";
 
 export default function ListProperty() {
   const { user, token, applyToken } = useAuth();
@@ -22,9 +24,8 @@ export default function ListProperty() {
     bedrooms: "",
     bathrooms: "",
   });
-  const [file, setFile] = useState(null);
+  const [images, setImages] = useState([]);
   const [error, setError] = useState(null);
-  const [uploadNotice, setUploadNotice] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   function update(field, value) {
@@ -34,19 +35,8 @@ export default function ListProperty() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
-    setUploadNotice(null);
     setSubmitting(true);
     try {
-      let image_url = null;
-      if (file) {
-        try {
-          const uploaded = await api.uploadImage(file, token);
-          image_url = uploaded.url;
-        } catch (err) {
-          setUploadNotice(`Couldn't upload the photo (${err.message}) - listing without it.`);
-        }
-      }
-
       const property = await api.createProperty(
         {
           ...form,
@@ -54,7 +44,8 @@ export default function ListProperty() {
           size_sqm: form.size_sqm ? Number(form.size_sqm) : null,
           bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
           bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
-          image_url,
+          image_url: firstImageUrl(images),
+          images,
         },
         token
       );
@@ -64,7 +55,7 @@ export default function ListProperty() {
       // refresh the local user so the sidebar switches immediately instead
       // of waiting for the next login.
       if (token) await applyToken(token);
-      navigate("/my-properties");
+      navigate("/my-properties", { state: { justListed: true } });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -208,35 +199,7 @@ export default function ListProperty() {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-ink-900">Photo (optional)</label>
-          <label
-            htmlFor="property-photo"
-            className="mt-1 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500 hover:border-brand-400 hover:bg-brand-50"
-          >
-            <Upload className="h-6 w-6 text-brand-500" />
-            {file ? "Click to replace photo" : "Click to upload, or drag and drop"}
-          </label>
-          <input
-            id="property-photo"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-          {file && (
-            <div className="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2 text-sm text-ink-900">
-              <span className="flex items-center gap-2 truncate">
-                <FileIcon className="h-4 w-4 shrink-0 text-brand-500" />
-                <span className="truncate">{file.name}</span>
-              </span>
-              <button type="button" onClick={() => setFile(null)} aria-label="Remove photo" className="text-slate-400 hover:text-slate-600">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-          {uploadNotice && <p className="mt-2 text-xs text-amber-600">{uploadNotice}</p>}
-        </div>
+        <ImageGalleryField label="Photos (optional)" images={images} onChange={setImages} />
 
         <button
           disabled={submitting}

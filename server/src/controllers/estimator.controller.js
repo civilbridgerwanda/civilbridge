@@ -57,6 +57,15 @@ export async function getById(req, res) {
     if (!estimate) {
       return res.status(404).json({ success: false, message: "Estimate not found" });
     }
+    // Experts/admins review estimates they don't own, so they can view any
+    // record; anyone else (the client role) may only view their own - this
+    // was missing entirely before, letting any signed-in user view any
+    // other user's estimate just by guessing/knowing its id.
+    const isOwner = estimate.user_id && estimate.user_id === req.user.sub;
+    const canReview = req.user.role === "admin" || req.user.role === "expert";
+    if (!isOwner && !canReview) {
+      return res.status(404).json({ success: false, message: "Estimate not found" });
+    }
     res.json({ success: true, data: estimate });
   } catch (err) {
     console.error(err);

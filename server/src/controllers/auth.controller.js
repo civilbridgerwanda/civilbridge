@@ -4,6 +4,8 @@ import { signToken } from "../middleware/auth.js";
 import { sendMail } from "../config/mailer.js";
 import { welcomeEmail, otpEmail, passwordResetEmail } from "../config/emailTemplates.js";
 import { createOtp, canResend, verifyOtp } from "../lib/otp.js";
+import { peekCredits } from "../middleware/credits.js";
+import { subscribeEmail } from "../lib/newsletterService.js";
 
 // Accounts created via a provider that doesn't supply a real email (X,
 // currently) get a placeholder like x-12345@users.civilbridge.local so the
@@ -21,6 +23,7 @@ function publicUser(user) {
     email: user.email,
     role: user.role,
     plan: user.plan,
+    requested_plan: user.requested_plan,
     email_verified: user.email_verified,
     has_verifiable_email: hasVerifiableEmail(user.email),
   };
@@ -47,6 +50,14 @@ export async function register(req, res) {
     const user = await User.create({ full_name, email, password_hash, role: safeRole });
 
     sendMail({ to: email, subject: "Welcome to CivilBridge", html: welcomeEmail(full_name) }).catch(() => {});
+
+    // New clients get platform updates by default instead of having to find
+    // and fill out the newsletter form separately; `silent` skips a second
+    // "you're subscribed" email since the welcome email above already greets
+    // them. Placeholder OAuth emails (no real inbox) are skipped entirely.
+    if (hasVerifiableEmail(email)) {
+      subscribeEmail(email, { silent: true }).catch(() => {});
+    }
 
     // Send a verification OTP right away so the person can confirm their
     // email without an extra step.
@@ -91,10 +102,38 @@ export async function me(req, res) {
   try {
     const user = await User.findByPk(req.user.sub);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    res.json({ success: true, data: publicUser(user) });
+    const credits = await peekCredits(user);
+    res.json({ success: true, data: { ...publicUser(user), credits } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to fetch account" });
+  }
+}
+
+// POST /api/auth/request-upgrade  { plan }
+// Billing isn't wired up yet, so an upgrade is a request an admin approves
+// manually (see PATCH /api/admin/users/:id/plan), not self-service checkout.
+export async function requestUpgrade(req, res) {
+  try {
+    const { plan } = req.body;
+    if (!["professional", "business"].includes(plan)) {
+      return res.status(400).json({ success: false, message: "Invalid plan" });
+    }
+
+    const user = await User.findByPk(req.user.sub);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (user.plan === plan) {
+      return res.status(400).json({ success: false, message: `You're already on the ${plan} plan` });
+    }
+
+    user.requested_plan = plan;
+    await user.save();
+
+    res.json({ success: true, data: publicUser(user) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Failed to request upgrade" });
   }
 }
 

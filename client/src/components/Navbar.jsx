@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, LayoutDashboard } from "lucide-react";
 import logo from "../assets/logo.png";
 import { useAuth } from "../lib/AuthContext";
@@ -16,10 +16,20 @@ const links = [
   { to: "/pricing", label: "Pricing" },
 ];
 
+// Property/Plan detail pages run an immersive full-viewport hero that needs
+// every pixel of vertical space it can get - shaving a little off the
+// navbar's own height there (and nowhere else) is part of how that hero
+// fits without overflowing. Detected by route rather than a prop so any
+// page matching this pattern gets it automatically and everywhere else is
+// completely unaffected.
+const COMPACT_ROUTE = /^\/(marketplace|plans)\/[^/]+/;
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const compact = COMPACT_ROUTE.test(location.pathname);
 
   function handleLogout() {
     logout();
@@ -29,7 +39,7 @@ export default function Navbar() {
 
   return (
     <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <div className={`mx-auto flex max-w-7xl items-center justify-between px-6 transition-[padding] duration-200 ${compact ? "py-2" : "py-4"}`}>
         <Link to="/" className="flex items-center gap-2 text-xl font-bold text-brand-500">
           <img src={logo} alt="CivilBridge" width="32" height="32" className="h-8 w-8" loading="eager" />
           CivilBridge

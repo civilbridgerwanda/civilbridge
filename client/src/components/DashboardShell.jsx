@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../lib/AuthContext";
 import { useUnreadMessagesCount } from "../lib/useUnreadMessages";
+import { getRoleTheme } from "../lib/roleTheme";
 import DashboardLayout from "./DashboardLayout";
 import PageLoader from "./PageLoader";
 
@@ -42,8 +43,10 @@ export default function DashboardShell() {
       { to: "/admin?tab=Plans", label: "Plans", icon: FileText },
       { to: "/admin?tab=Inquiries", label: "Inquiries", icon: LifeBuoy },
       { to: "/admin?tab=Payments", label: "Payments", icon: CreditCard },
+      { to: "/admin?tab=Conversations", label: "Conversations", icon: MessageSquare },
       { to: "/admin?tab=Newsletter", label: "Newsletter", icon: Mail },
       messagesItem,
+      { to: "/settings", label: "Settings", icon: Settings },
     ];
     searchPlaceholder = "Search users by name or email...";
     onSearch = (q) => navigate(`/admin?tab=Users&search=${encodeURIComponent(q)}`);
@@ -94,5 +97,12 @@ export default function DashboardShell() {
     onSearch = (q) => navigate(`/marketplace?search=${encodeURIComponent(q)}`);
   }
 
-  return <DashboardLayout navItems={navItems} searchPlaceholder={searchPlaceholder} onSearch={onSearch} />;
+  return (
+    <DashboardLayout
+      navItems={navItems}
+      searchPlaceholder={searchPlaceholder}
+      onSearch={onSearch}
+      theme={getRoleTheme(user.role)}
+    />
+  );
 }

@@ -7,6 +7,8 @@ import Seo from "../components/Seo";
 import { SkeletonGrid, ExpertCardSkeleton } from "../components/Skeleton";
 import { fadeUp, stagger } from "../lib/motion";
 import { RWANDA_LOCATIONS } from "../lib/locations";
+import { useAuth } from "../lib/AuthContext";
+import Avatar from "../components/Avatar";
 
 const categories = [
   { value: "all", label: "All Experts" },
@@ -46,6 +48,7 @@ function formatRating(rating) {
 }
 
 export default function Experts() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [experts, setExperts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -246,7 +249,11 @@ export default function Experts() {
         {/* Results count + sort */}
         <div className="mt-6 flex items-center justify-between border-b border-slate-200 pb-4">
           <p className="text-sm text-slate-500">
-            {loading ? "Searching…" : `${experts.length} verified ${experts.length === 1 ? "expert" : "experts"}`}
+            {loading
+              ? "Searching…"
+              : user?.role === "admin"
+                ? `${experts.length} verified ${experts.length === 1 ? "expert" : "experts"}`
+                : "Showing results"}
           </p>
           <label className="flex items-center gap-2 text-sm text-slate-500">
             Sort by:
@@ -290,19 +297,7 @@ export default function Experts() {
               >
                 <div className="flex items-center gap-4">
                   <div className="relative shrink-0">
-                    {e.avatar_url ? (
-                      <img
-                        src={e.avatar_url}
-                        alt={e.full_name}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-16 w-16 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-600">
-                        {e.full_name?.[0]}
-                      </div>
-                    )}
+                    <Avatar gravatarUrl={e.gravatar_url} avatarUrl={e.avatar_url} name={e.full_name} className="h-16 w-16" />
                     {e.is_verified ? (
                       <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-white ring-2 ring-white">
                         <BadgeCheck className="h-4 w-4" />

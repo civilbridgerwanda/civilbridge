@@ -35,13 +35,16 @@ import {
 } from "recharts";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
+import { getRoleTheme } from "../../lib/roleTheme";
 import Seo from "../../components/Seo";
 import { formatRelativeTime } from "../../lib/formatRelativeTime";
 import PropertyFormModal from "../../components/admin/PropertyFormModal";
 import PlanFormModal from "../../components/admin/PlanFormModal";
 import UserDetailModal from "../../components/admin/UserDetailModal";
+import Modal from "../../components/Modal";
 
-const TABS = ["Overview", "Analytics", "Estimates", "Users", "Properties", "Plans", "Inquiries", "Payments", "Newsletter"];
+const TABS = ["Overview", "Analytics", "Estimates", "Users", "Properties", "Plans", "Inquiries", "Payments", "Conversations", "Newsletter"];
+const theme = getRoleTheme("admin");
 
 const paymentStatusStyles = {
   pending: "bg-amber-50 text-amber-700",
@@ -73,6 +76,10 @@ export default function AdminDashboard() {
   const [inquiries, setInquiries] = useState([]);
   const [updatingInquiryId, setUpdatingInquiryId] = useState(null);
   const [payments, setPayments] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [viewingConversationId, setViewingConversationId] = useState(null);
+  const [conversationDetail, setConversationDetail] = useState(null);
+  const [loadingConversation, setLoadingConversation] = useState(false);
   const [properties, setProperties] = useState([]);
   const [plans, setPlans] = useState([]);
   const [experts, setExperts] = useState([]);
@@ -116,7 +123,7 @@ export default function AdminDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [statsData, analyticsData, estimatesData, usersData, subscribersData, campaignsData, paymentsData, propertiesData, plansData, inquiriesData, expertsData] =
+      const [statsData, analyticsData, estimatesData, usersData, subscribersData, campaignsData, paymentsData, propertiesData, plansData, inquiriesData, expertsData, conversationsData] =
         await Promise.all([
           api.adminStats(token),
           api.adminAnalytics(token),
@@ -125,10 +132,11 @@ export default function AdminDashboard() {
           api.adminNewsletter(token),
           api.adminNewsletterCampaigns(token),
           api.adminPayments(token),
-          api.getProperties(),
+          api.getProperties({}, token),
           api.getPlans(),
           api.adminPlanInquiries(token),
           api.getExperts(),
+          api.adminListConversations(token),
         ]);
       setStats(statsData);
       setAnalytics(analyticsData);
@@ -141,6 +149,7 @@ export default function AdminDashboard() {
       setPlans(plansData);
       setInquiries(inquiriesData);
       setExperts(expertsData);
+      setConversations(conversationsData);
       setLastLoaded(new Date());
     } catch (err) {
       setError(err.message);
@@ -194,7 +203,9 @@ export default function AdminDashboard() {
     setUpdatingUserId(userId);
     try {
       const updated = await api.updateUserPlan(userId, plan, token);
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, plan: updated.plan } : u)));
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, plan: updated.plan, requested_plan: updated.requested_plan } : u))
+      );
     } catch (err) {
       alert(err.message);
     } finally {
@@ -227,6 +238,21 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleViewConversation(id) {
+    setViewingConversationId(id);
+    setLoadingConversation(true);
+    setConversationDetail(null);
+    try {
+      const detail = await api.adminGetConversation(id, token);
+      setConversationDetail(detail);
+    } catch (err) {
+      alert(err.message);
+      setViewingConversationId(null);
+    } finally {
+      setLoadingConversation(false);
+    }
+  }
+
   async function handlePaymentStatusChange(paymentId, status) {
     setUpdatingPaymentId(paymentId);
     try {
@@ -250,6 +276,15 @@ export default function AdminDashboard() {
     try {
       await api.adminDeleteProperty(property.id, token);
       setProperties((prev) => prev.filter((p) => p.id !== property.id));
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function handleApproveProperty(property) {
+    try {
+      const updated = await api.adminApproveProperty(property.id, token);
+      setProperties((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     } catch (err) {
       alert(err.message);
     }
@@ -365,10 +400,10 @@ export default function AdminDashboard() {
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`shrink-0 px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
+            className={`shrink-0 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
               tab === t
-                ? "border-b-2 border-brand-500 text-brand-600"
-                : "text-slate-500 hover:text-ink-900"
+                ? `border-indigo-500 ${theme.text}`
+                : "border-transparent text-slate-500 hover:text-ink-900"
             }`}
           >
             {t}
@@ -395,7 +430,7 @@ export default function AdminDashboard() {
                   return (
                     <div key={c.label} className="rounded-2xl border border-slate-200 p-6">
                       <div className="flex items-center justify-between">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                        <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${theme.iconChip}`}>
                           <Icon className="h-5 w-5" />
                         </span>
                         {hasTrend && (
@@ -427,7 +462,7 @@ export default function AdminDashboard() {
                           <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
                           <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} width={24} />
                           <Tooltip cursor={{ fill: "#f8fafc" }} />
-                          <Bar dataKey="count" name="Estimates" fill="#03204c" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="count" name="Estimates" fill="#4f46e5" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -459,7 +494,7 @@ export default function AdminDashboard() {
                     {Object.entries(stats.estimatesByStatus).map(([status, count]) => (
                       <span
                         key={status}
-                        className="rounded-full bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-600"
+                        className={`rounded-full px-3 py-1.5 text-sm font-semibold ${theme.iconChip}`}
                       >
                         {status.replace("_", " ")}: {count}
                       </span>
@@ -486,7 +521,7 @@ export default function AdminDashboard() {
                       <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} width={24} />
                       <Tooltip cursor={{ fill: "#f8fafc" }} />
-                      <Bar dataKey="value" name="Records" fill="#03204c" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="value" name="Records" fill="#4f46e5" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -503,7 +538,7 @@ export default function AdminDashboard() {
                     </>
                   )}
                   metric={(p) => (
-                    <span className="flex items-center gap-1 text-sm font-semibold text-brand-600">
+                    <span className={`flex items-center gap-1 text-sm font-semibold ${theme.text}`}>
                       <Eye className="h-3.5 w-3.5" /> {p.view_count}
                     </span>
                   )}
@@ -518,7 +553,7 @@ export default function AdminDashboard() {
                     </>
                   )}
                   metric={(e) => (
-                    <span className="flex items-center gap-1 text-sm font-semibold text-brand-600">
+                    <span className={`flex items-center gap-1 text-sm font-semibold ${theme.text}`}>
                       <Star className="h-3.5 w-3.5" fill="currentColor" /> {formatRating(e.rating)}
                     </span>
                   )}
@@ -535,7 +570,7 @@ export default function AdminDashboard() {
                     </>
                   )}
                   metric={(p) => (
-                    <span className="flex items-center gap-1 text-sm font-semibold text-brand-600">
+                    <span className={`flex items-center gap-1 text-sm font-semibold ${theme.text}`}>
                       <Eye className="h-3.5 w-3.5" /> {p.view_count}
                     </span>
                   )}
@@ -675,6 +710,14 @@ export default function AdminDashboard() {
                             <option value="professional">Professional</option>
                             <option value="business">Business</option>
                           </select>
+                          {u.requested_plan && (
+                            <span
+                              title={`Requested upgrade to ${u.requested_plan}`}
+                              className="mt-1 flex items-center gap-1 text-xs font-semibold text-amber-600"
+                            >
+                              <Clock className="h-3 w-3" /> Wants {u.requested_plan}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
@@ -752,7 +795,14 @@ export default function AdminDashboard() {
                   <tbody>
                     {properties.map((p) => (
                       <tr key={p.id} className="border-t border-slate-100">
-                        <td className="px-4 py-3 font-semibold text-ink-900">{p.title}</td>
+                        <td className="px-4 py-3 font-semibold text-ink-900">
+                          {p.title}
+                          {!p.is_approved && (
+                            <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                              Pending Approval
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-slate-500">{p.city}</td>
                         <td className="px-4 py-3 text-slate-600">
                           {p.currency} {Number(p.price).toLocaleString()}
@@ -761,6 +811,16 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3 text-slate-400">{p.view_count}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
+                            {!p.is_approved && (
+                              <button
+                                type="button"
+                                onClick={() => handleApproveProperty(p)}
+                                title="Approve"
+                                className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -970,7 +1030,7 @@ export default function AdminDashboard() {
                   <p className="mt-1 text-sm text-slate-500">Pending Payments</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 p-6">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${theme.iconChip}`}>
                     <CreditCard className="h-5 w-5" />
                   </span>
                   <p className="mt-4 text-3xl font-extrabold text-ink-900">{payments.length}</p>
@@ -1017,6 +1077,57 @@ export default function AdminDashboard() {
                       <tr>
                         <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
                           No payments yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {tab === "Conversations" && (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500">
+                Read-only visibility into direct conversations between clients, experts, and property owners -
+                for policy and compliance oversight, not for participating.
+              </p>
+              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">Participants</th>
+                      <th className="px-4 py-3">Last Message</th>
+                      <th className="px-4 py-3">Messages</th>
+                      <th className="px-4 py-3">Updated</th>
+                      <th className="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {conversations.map((c) => (
+                      <tr key={c.id} className="border-t border-slate-100">
+                        <td className="px-4 py-3 font-semibold text-ink-900">
+                          {c.userA?.full_name || "Deleted user"} <span className="font-normal text-slate-400">&harr;</span>{" "}
+                          {c.userB?.full_name || "Deleted user"}
+                        </td>
+                        <td className="max-w-xs truncate px-4 py-3 text-slate-500">{c.lastMessage || "—"}</td>
+                        <td className="px-4 py-3 text-slate-500">{c.messageCount}</td>
+                        <td className="px-4 py-3 text-slate-400">{new Date(c.updatedAt).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleViewConversation(c.id)}
+                            className={`rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 ${theme.text}`}
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {!conversations.length && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                          No conversations yet.
                         </td>
                       </tr>
                     )}
@@ -1154,6 +1265,42 @@ export default function AdminDashboard() {
         />
       )}
       {viewingUserId && <UserDetailModal userId={viewingUserId} onClose={() => setViewingUserId(null)} />}
+
+      {viewingConversationId && (
+        <Modal
+          title={
+            conversationDetail
+              ? `${conversationDetail.userA?.full_name || "Deleted user"} & ${conversationDetail.userB?.full_name || "Deleted user"}`
+              : "Conversation"
+          }
+          onClose={() => setViewingConversationId(null)}
+        >
+          {loadingConversation ? (
+            <div className="flex items-center justify-center py-10 text-slate-400">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : conversationDetail ? (
+            <div className="max-h-[60vh] space-y-3 overflow-y-auto">
+              {conversationDetail.messages.map((m) => {
+                const isA = m.sender_id === conversationDetail.userA?.id;
+                const sender = isA ? conversationDetail.userA : conversationDetail.userB;
+                return (
+                  <div key={m.id} className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs font-semibold text-slate-500">
+                      {sender?.full_name || "Deleted user"} ({sender?.role || "unknown"}) ·{" "}
+                      {new Date(m.created_at).toLocaleString()}
+                    </p>
+                    <p className="mt-1 text-sm text-ink-900">{m.content}</p>
+                  </div>
+                );
+              })}
+              {!conversationDetail.messages.length && (
+                <p className="py-6 text-center text-sm text-slate-400">No messages in this conversation yet.</p>
+              )}
+            </div>
+          ) : null}
+        </Modal>
+      )}
     </div>
   );
 }

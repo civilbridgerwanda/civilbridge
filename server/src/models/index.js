@@ -14,6 +14,8 @@ import { Payment } from "./Payment.js";
 import { NewsletterCampaign } from "./NewsletterCampaign.js";
 import { PlanInquiry } from "./PlanInquiry.js";
 import { ExpertReview, ExpertPortfolio } from "./ExpertReview.js";
+import { PropertyReview } from "./PropertyReview.js";
+import { PlanReview } from "./PlanReview.js";
 
 // Cross-model associations that aren't self-contained in one model file.
 User.hasOne(Expert, { foreignKey: "user_id" });
@@ -62,6 +64,16 @@ ExpertReview.belongsTo(User, { foreignKey: "reviewer_id", as: "reviewer" });
 Expert.hasMany(ExpertPortfolio, { foreignKey: "expert_id", as: "portfolio" });
 ExpertPortfolio.belongsTo(Expert, { foreignKey: "expert_id" });
 
+Property.hasMany(PropertyReview, { foreignKey: "property_id", as: "reviews" });
+PropertyReview.belongsTo(Property, { foreignKey: "property_id" });
+User.hasMany(PropertyReview, { foreignKey: "reviewer_id" });
+PropertyReview.belongsTo(User, { foreignKey: "reviewer_id", as: "reviewer" });
+
+Plan.hasMany(PlanReview, { foreignKey: "plan_id", as: "reviews" });
+PlanReview.belongsTo(Plan, { foreignKey: "plan_id" });
+User.hasMany(PlanReview, { foreignKey: "reviewer_id" });
+PlanReview.belongsTo(User, { foreignKey: "reviewer_id", as: "reviewer" });
+
 export {
   sequelize,
   User,
@@ -83,4 +95,6 @@ export {
   PlanInquiry,
   ExpertReview,
   ExpertPortfolio,
+  PropertyReview,
+  PlanReview,
 };

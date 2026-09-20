@@ -30,6 +30,28 @@ const columnBackfills = [
   "ALTER TABLE plan_inquiries ADD COLUMN assigned_expert_id CHAR(36) NULL",
   "ALTER TABLE estimates ADD COLUMN assigned_expert_id CHAR(36) NULL",
   "ALTER TABLE users MODIFY COLUMN role ENUM('client', 'expert', 'property_owner', 'admin') NOT NULL DEFAULT 'client'",
+  "ALTER TABLE users ADD COLUMN credits_remaining INT NOT NULL DEFAULT 5",
+  "ALTER TABLE users ADD COLUMN credits_reset_at TIMESTAMP NULL DEFAULT NULL",
+  "ALTER TABLE users ADD COLUMN requested_plan ENUM('professional', 'business') NULL DEFAULT NULL",
+  "ALTER TABLE properties ADD COLUMN images JSON NULL",
+  "ALTER TABLE properties ADD COLUMN is_featured BOOLEAN NOT NULL DEFAULT FALSE",
+  "ALTER TABLE properties ADD COLUMN is_approved BOOLEAN NOT NULL DEFAULT TRUE",
+  "ALTER TABLE properties ADD COLUMN rating DECIMAL(2,1) DEFAULT 0.0",
+  "ALTER TABLE properties ADD COLUMN review_count INT DEFAULT 0",
+  "ALTER TABLE plans ADD COLUMN images JSON NULL",
+  "ALTER TABLE plans ADD COLUMN document_url VARCHAR(500) NULL",
+  "ALTER TABLE plans ADD COLUMN video_url VARCHAR(500) NULL",
+  "ALTER TABLE plans ADD COLUMN zip_url VARCHAR(500) NULL",
+  "ALTER TABLE plans ADD COLUMN review_count INT DEFAULT 0",
+  "ALTER TABLE plans ADD COLUMN license_price DECIMAL(14,2) NULL",
+  "ALTER TABLE plan_inquiries ADD COLUMN preferred_date DATETIME NULL",
+  "ALTER TABLE ai_conversations ADD COLUMN share_token VARCHAR(32) NULL UNIQUE",
+  // These three make the seed INSERTs below actually idempotent - see the
+  // comments on these columns in schema.sql for why UUID() primary keys
+  // alone don't stop `npm run migrate` from re-duplicating sample rows.
+  "ALTER TABLE experts ADD UNIQUE KEY unique_expert_user (user_id)",
+  "ALTER TABLE properties ADD UNIQUE KEY unique_property_image (image_url)",
+  "ALTER TABLE plans ADD UNIQUE KEY unique_plan_image (image_url)",
 ];
 
 // Catches a regression where a property/plan gets seeded with an image_url
@@ -127,7 +149,9 @@ async function migrate() {
       try {
         await connection.query(statement);
       } catch (err) {
-        if (err.code !== "ER_DUP_FIELDNAME") throw err; // column already exists - fine
+        // Column, or (for the UNIQUE KEY backfills) constraint, already
+        // exists from a previous migrate run - fine either way.
+        if (err.code !== "ER_DUP_FIELDNAME" && err.code !== "ER_DUP_KEYNAME") throw err;
       }
     }
 

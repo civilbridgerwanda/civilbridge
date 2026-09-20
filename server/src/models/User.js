@@ -13,6 +13,9 @@ export const User = sequelize.define(
     email_verified: { type: DataTypes.BOOLEAN, defaultValue: false },
     is_suspended: { type: DataTypes.BOOLEAN, defaultValue: false },
     plan: { type: DataTypes.ENUM("starter", "professional", "business"), defaultValue: "starter" },
+    credits_remaining: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 5 },
+    credits_reset_at: { type: DataTypes.DATE, allowNull: true, defaultValue: null },
+    requested_plan: { type: DataTypes.ENUM("professional", "business"), allowNull: true, defaultValue: null },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
   {

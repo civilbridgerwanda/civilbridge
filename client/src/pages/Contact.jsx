@@ -1,13 +1,31 @@
 import { useState } from "react";
-import { Mail, CheckCircle2, Facebook, Twitter, Instagram, Linkedin, MapPin, Clock, Briefcase, HeadphonesIcon, Newspaper } from "lucide-react";
+import { Mail, CheckCircle2, Facebook, Instagram, Linkedin, MapPin, Clock, Briefcase, HeadphonesIcon, Newspaper } from "lucide-react";
 import { api } from "../lib/api";
 import Seo from "../components/Seo";
 
+// Lucide has no official X (formerly Twitter) glyph, so we render the
+// current brand mark directly rather than the old bird icon.
+function XIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
 const socials = [
-  { Icon: Facebook, href: "https://facebook.com", label: "Facebook" },
-  { Icon: Twitter, href: "https://twitter.com", label: "Twitter" },
-  { Icon: Instagram, href: "https://instagram.com", label: "Instagram" },
-  { Icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
+  { Icon: Facebook, href: "https://www.facebook.com/profile.php?id=61592466209501", label: "Facebook" },
+  { Icon: XIcon, href: "https://x.com/CivilBridgeRw", label: "X (Twitter)" },
+  {
+    Icon: Instagram,
+    href: "https://www.instagram.com/civil.bridge?utm_source=qr&stkn=MWVrNHJoNnoyZmVydw==",
+    label: "Instagram",
+  },
+  {
+    Icon: Linkedin,
+    href: "https://www.linkedin.com/in/civil-bridge-417023438?utm_source=share_via&utm_content=profile&utm_medium=member_android",
+    label: "LinkedIn",
+  },
 ];
 
 const reasons = [

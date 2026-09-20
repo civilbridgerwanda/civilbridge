@@ -78,8 +78,25 @@ export function estimateStatusEmail(projectName, status, nextLink = "/dashboard"
 export function newsletterWelcomeEmail() {
   return wrap(
     "You're subscribed!",
-    `<p>Thanks for subscribing to CivilBridge updates. We'll send you news on new plans, market insights, and platform features - no spam.</p>
-     ${button("See the Latest Plans", "/plans")}`
+    `<p>Thanks for subscribing to CivilBridge updates. Whenever we publish a new architectural
+     plan or list a new property, you'll be among the first to hear about it - no spam, just
+     the updates that matter.</p>
+     <p>In the meantime, take a look at what's already on the platform:</p>
+     ${button("Browse Architectural Plans", "/plans")}
+     ${button("Browse Properties & Land", "/marketplace")}`
+  );
+}
+
+// Sent to every active newsletter subscriber right after a new property or
+// plan is published, so the list stays useful without anyone needing to
+// keep checking the site manually.
+export function newListingEmail({ kind, title, id }) {
+  const path = kind === "plan" ? `/plans/${id}` : `/marketplace/${id}`;
+  const label = kind === "plan" ? "architectural plan" : "property";
+  return wrap(
+    kind === "plan" ? "A new plan just went up" : "A new property just went up",
+    `<p>We just published a new ${label} on CivilBridge: <strong>${title}</strong>.</p>
+     ${button(`View "${title}"`, path)}`
   );
 }
 

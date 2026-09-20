@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, Clock } from "lucide-react";
 import Seo from "../components/Seo";
 import BillingToggle from "../components/BillingToggle";
+import { useAuth } from "../lib/AuthContext";
+import { api } from "../lib/api";
 
 const PLANS = [
   {
@@ -21,6 +23,7 @@ const PLANS = [
   },
   {
     name: "Professional",
+    planValue: "professional",
     tagline: "For clients actively building",
     monthly: 15000,
     annual: 150000,
@@ -28,6 +31,9 @@ const PLANS = [
     // Softened from "Get Started" - this tier has a specific paid price
     // that the disclosure above says isn't final yet, so an urgent
     // sign-up CTA right under that disclosure reads as a contradiction.
+    // Billing isn't wired up either, so this doesn't self-checkout - it
+    // submits a request an admin approves manually (see requestUpgrade
+    // below and PATCH /api/admin/users/:id/plan on the backend).
     cta: { label: "Join the Waitlist", to: "/get-started" },
     features: [
       "Everything in Starter",
@@ -62,7 +68,25 @@ function formatPrice(amount) {
 }
 
 export default function Pricing() {
+  const { user, token } = useAuth();
   const [billing, setBilling] = useState("monthly");
+  const [requesting, setRequesting] = useState(null); // plan value currently being requested
+  const [requestedPlan, setRequestedPlan] = useState(user?.requested_plan ?? null);
+  const [requestError, setRequestError] = useState(null);
+
+  async function handleRequestUpgrade(planValue) {
+    if (!token) return; // handled by the Link fallback below, not reachable here
+    setRequesting(planValue);
+    setRequestError(null);
+    try {
+      await api.requestUpgrade(planValue, token);
+      setRequestedPlan(planValue);
+    } catch (err) {
+      setRequestError(err.message);
+    } finally {
+      setRequesting(null);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-16">
@@ -83,6 +107,10 @@ export default function Pricing() {
         </p>
 
         <BillingToggle value={billing} onChange={setBilling} />
+
+        {requestError && (
+          <p className="mx-auto mt-4 max-w-md rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{requestError}</p>
+        )}
       </div>
 
       <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -129,16 +157,35 @@ export default function Pricing() {
                 ))}
               </ul>
 
-              <Link
-                to={plan.cta.to}
-                className={`mt-8 block rounded-lg py-2.5 text-center text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
-                  plan.highlighted
-                    ? "bg-brand-500 text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
-                    : "border border-slate-300 bg-slate-50 text-ink-900 hover:bg-slate-100"
-                }`}
-              >
-                {plan.cta.label}
-              </Link>
+              {plan.planValue && token && user?.plan === plan.planValue ? (
+                <span className="mt-8 block rounded-lg border border-emerald-200 bg-emerald-50 py-2.5 text-center text-sm font-semibold text-emerald-700">
+                  Current Plan
+                </span>
+              ) : plan.planValue && token && requestedPlan === plan.planValue ? (
+                <span className="mt-8 flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-center text-sm font-semibold text-slate-500">
+                  <Clock className="h-4 w-4" /> Request Pending
+                </span>
+              ) : plan.planValue && token ? (
+                <button
+                  type="button"
+                  disabled={requesting === plan.planValue}
+                  onClick={() => handleRequestUpgrade(plan.planValue)}
+                  className="mt-8 block w-full rounded-lg bg-brand-500 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-60"
+                >
+                  {requesting === plan.planValue ? "Sending…" : plan.cta.label}
+                </button>
+              ) : (
+                <Link
+                  to={plan.cta.to}
+                  className={`mt-8 block rounded-lg py-2.5 text-center text-sm font-semibold transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
+                    plan.highlighted
+                      ? "bg-brand-500 text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
+                      : "border border-slate-300 bg-slate-50 text-ink-900 hover:bg-slate-100"
+                  }`}
+                >
+                  {plan.cta.label}
+                </Link>
+              )}
             </div>
           );
         })}

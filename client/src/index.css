@@ -15,3 +15,48 @@ h2,
 h3 {
   @apply font-display;
 }
+
+/* Hero gallery's thumbnail rail (ImageGallery, layout="hero") - the
+   scrollbar stays fully invisible at rest, even when there are enough
+   thumbnails to overflow the rail, and only fades in for the moment the
+   user is actually scrolling it (toggled via the .is-scrolling class in
+   JS). Thumb color is a translucent white so it reads on any photo
+   underneath rather than looking like a default system scrollbar. */
+.thumb-rail {
+  scrollbar-width: none;
+}
+.thumb-rail::-webkit-scrollbar {
+  width: 5px;
+}
+.thumb-rail::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+.thumb-rail.is-scrolling {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.45) transparent;
+}
+.thumb-rail.is-scrolling::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+/* Continuous infinite marquee (FeaturedPropertiesCarousel) - the track
+   renders its items twice back to back and scrolls exactly half its own
+   width, so the loop point is seamless. Duration is set per-instance via
+   the --marquee-duration custom property. */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee-scroll var(--marquee-duration, 40s) linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}

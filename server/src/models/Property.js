@@ -1,5 +1,6 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../config/sequelize.js";
+import { jsonArrayField } from "./jsonArrayField.js";
 
 export const Property = sequelize.define(
   "Property",
@@ -17,7 +18,12 @@ export const Property = sequelize.define(
     bedrooms: { type: DataTypes.INTEGER },
     bathrooms: { type: DataTypes.INTEGER },
     image_url: { type: DataTypes.STRING(500) },
+    images: jsonArrayField("images"),
+    is_featured: { type: DataTypes.BOOLEAN, defaultValue: false },
+    is_approved: { type: DataTypes.BOOLEAN, defaultValue: true },
     status: { type: DataTypes.ENUM("available", "pending", "sold"), defaultValue: "available" },
+    rating: { type: DataTypes.DECIMAL(2, 1), defaultValue: 0.0 },
+    review_count: { type: DataTypes.INTEGER, defaultValue: 0 },
     view_count: { type: DataTypes.INTEGER, defaultValue: 0 },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },

@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { Plan, PlanInquiry, User } from "../models/index.js";
+import { Plan, PlanInquiry, PlanReview, User } from "../models/index.js";
 import { sendMail } from "../config/mailer.js";
 import { planInquiryConfirmationEmail } from "../config/emailTemplates.js";
 import { notify } from "../lib/notify.js";
@@ -53,7 +53,9 @@ export async function list(req, res) {
     if (pill === "best_value") order = orderMap.price_asc;
     if (pill === "prime_locations") where.is_prime_location = true;
 
-    const rows = await Plan.findAll({ where, order });
+    // This listing endpoint is public (no auth) - zip_url is the paid
+    // deliverable, never appropriate to hand out here regardless of role.
+    const rows = await Plan.findAll({ where, order, attributes: { exclude: ["zip_url"] } });
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error(err);
@@ -69,7 +71,15 @@ export async function getById(req, res) {
       return res.status(404).json({ success: false, message: "Plan not found" });
     }
     plan.increment("view_count").catch(() => {});
-    res.json({ success: true, data: plan });
+
+    // zip_url is the actual paid deliverable, not a preview - there's no
+    // purchase/entitlement system wired up yet, so the only safe default is
+    // to withhold the real download link from everyone except admins rather
+    // than hand it out to any signed-in visitor.
+    const data = plan.toJSON();
+    if (req.user.role !== "admin") delete data.zip_url;
+
+    res.json({ success: true, data });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to fetch plan" });
@@ -87,7 +97,7 @@ export async function createInquiry(req, res) {
       return res.status(404).json({ success: false, message: "Plan not found" });
     }
 
-    const { full_name, email, whatsapp, message } = req.body;
+    const { full_name, email, whatsapp, message, preferred_date } = req.body;
     if (!full_name || !email || !whatsapp) {
       return res.status(400).json({ success: false, message: "Name, email, and WhatsApp number are required" });
     }
@@ -101,6 +111,7 @@ export async function createInquiry(req, res) {
       email,
       whatsapp,
       message: message || null,
+      preferred_date: preferred_date || null,
     });
 
     // Confirmation to the person who asked - this is the actual promise
@@ -118,11 +129,12 @@ export async function createInquiry(req, res) {
     if (to) {
       sendMail({
         to,
-        subject: `New plan inquiry: ${plan.title}`,
+        subject: preferred_date ? `New site tour request: ${plan.title}` : `New plan inquiry: ${plan.title}`,
         html: `
           <p><strong>Plan:</strong> ${plan.title}</p>
           <p><strong>From:</strong> ${full_name} (${email})</p>
           <p><strong>WhatsApp:</strong> ${whatsapp}</p>
+          ${preferred_date ? `<p><strong>Preferred date/time:</strong> ${new Date(preferred_date).toLocaleString()}</p>` : ""}
           ${message ? `<p><strong>Message:</strong> ${message.replace(/\n/g, "<br>")}</p>` : ""}
         `,
       }).catch(() => {});
@@ -133,8 +145,10 @@ export async function createInquiry(req, res) {
     for (const admin of admins) {
       notify(io, admin.id, {
         type: "plan_inquiry",
-        title: `New inquiry for "${plan.title}"`,
-        body: `${full_name} wants to talk to an expert about this plan.`,
+        title: `New ${preferred_date ? "site tour request" : "inquiry"} for "${plan.title}"`,
+        body: preferred_date
+          ? `${full_name} wants to book a site tour on ${new Date(preferred_date).toLocaleString()}.`
+          : `${full_name} wants to talk to an expert about this plan.`,
         link: "/admin?tab=Inquiries",
       }).catch(() => {});
     }
@@ -149,5 +163,65 @@ export async function createInquiry(req, res) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to submit your request" });
+  }
+}
+
+// ---------- Reviews ----------
+
+async function recomputeRating(planId) {
+  const reviews = await PlanReview.findAll({ where: { plan_id: planId }, attributes: ["rating"] });
+  const review_count = reviews.length;
+  const rating = review_count ? reviews.reduce((sum, r) => sum + r.rating, 0) / review_count : 0;
+  await Plan.update({ rating: Math.round(rating * 10) / 10, review_count }, { where: { id: planId } });
+}
+
+// GET /api/plans/:id/reviews
+export async function listReviews(req, res) {
+  try {
+    const reviews = await PlanReview.findAll({
+      where: { plan_id: req.params.id },
+      include: [{ model: User, as: "reviewer", attributes: ["full_name"] }],
+      order: [["created_at", "DESC"]],
+    });
+    res.json({ success: true, data: reviews });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Failed to fetch reviews" });
+  }
+}
+
+// POST /api/plans/:id/reviews  { rating, comment }
+// One review per (plan, reviewer) - submitting again updates it.
+export async function upsertReview(req, res) {
+  try {
+    const { rating, comment } = req.body;
+    const ratingNum = Number(rating);
+    if (!ratingNum || ratingNum < 1 || ratingNum > 5) {
+      return res.status(400).json({ success: false, message: "Rating must be between 1 and 5" });
+    }
+
+    const plan = await Plan.findByPk(req.params.id);
+    if (!plan) {
+      return res.status(404).json({ success: false, message: "Plan not found" });
+    }
+
+    const [review] = await PlanReview.findOrCreate({
+      where: { plan_id: plan.id, reviewer_id: req.user.sub },
+      defaults: { rating: ratingNum, comment },
+    });
+    review.rating = ratingNum;
+    review.comment = comment;
+    review.updated_at = new Date();
+    await review.save();
+
+    await recomputeRating(plan.id);
+
+    const withReviewer = await PlanReview.findByPk(review.id, {
+      include: [{ model: User, as: "reviewer", attributes: ["full_name"] }],
+    });
+    res.status(201).json({ success: true, data: withReviewer });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Failed to submit review" });
   }
 }

@@ -7,6 +7,10 @@ export const AiConversation = sequelize.define(
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     user_id: { type: DataTypes.UUID },
     title: { type: DataTypes.STRING(200), defaultValue: "New Conversation" },
+    // Set only once someone clicks "Share" - a random public id, distinct
+    // from the real (UUID) primary key, so a share link never doubles as a
+    // way to guess/access someone else's conversation by id.
+    share_token: { type: DataTypes.STRING(32), unique: true },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },

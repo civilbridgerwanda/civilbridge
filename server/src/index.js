@@ -1,5 +1,7 @@
 import express from "express";
 import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -28,6 +30,8 @@ import paymentsRouter from "./routes/payments.js";
 
 dotenv.config();
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const app = express();
 const server = http.createServer(app);
 
@@ -42,10 +46,17 @@ const io = new Server(server, {
 // before mounting any routes so it's always available to them.
 app.set("io", io);
 
-app.use(helmet());
+// cross-origin resource policy relaxed to "cross-origin" so the client
+// (a different origin/port in dev) can actually load images served from
+// /uploads below - helmet's default same-origin policy would block them.
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: CLIENT_URL }));
 app.use(morgan("dev"));
 app.use(express.json());
+
+// Locally-uploaded files (used when Cloudinary isn't configured - see
+// uploads.controller.js).
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Session is used ONLY to store transient OAuth handshake state (the
 // "state"/PKCE values passport-oauth2 needs between the redirect to

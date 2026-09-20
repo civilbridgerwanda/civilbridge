@@ -3,11 +3,13 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Menu, X, Search, LogOut } from "lucide-react";
 import logo from "../assets/logo.png";
 import { useAuth } from "../lib/AuthContext";
+import { getRoleTheme } from "../lib/roleTheme";
 import NotificationBell from "./NotificationBell";
 import MessagesIconLink from "./MessagesIconLink";
 
-export default function DashboardLayout({ navItems, searchPlaceholder, onSearch, roleLabel }) {
+export default function DashboardLayout({ navItems, searchPlaceholder, onSearch, roleLabel, theme }) {
   const { user, logout } = useAuth();
+  const t = theme || getRoleTheme(user?.role);
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -40,7 +42,7 @@ export default function DashboardLayout({ navItems, searchPlaceholder, onSearch,
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] ${
-                  isActive ? "bg-brand-50 text-brand-600" : "text-slate-600 hover:bg-slate-50"
+                  isActive ? t.activeNav : "text-slate-600 hover:bg-slate-50"
                 }`
               }
             >
@@ -49,7 +51,7 @@ export default function DashboardLayout({ navItems, searchPlaceholder, onSearch,
                 {item.label}
               </span>
               {item.badge > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-brand-500 px-1.5 text-xs font-bold text-white">
+                <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-bold text-white ${t.badge}`}>
                   {item.badge > 9 ? "9+" : item.badge}
                 </span>
               )}
@@ -60,7 +62,7 @@ export default function DashboardLayout({ navItems, searchPlaceholder, onSearch,
 
       <div className="border-t border-slate-100 p-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-500 text-sm font-semibold text-white">
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${t.avatar}`}>
             {user?.full_name?.[0]?.toUpperCase()}
           </span>
           <div className="min-w-0">
@@ -124,7 +126,7 @@ export default function DashboardLayout({ navItems, searchPlaceholder, onSearch,
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={searchPlaceholder || "Search..."}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100"
+              className={`w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm focus:bg-white focus:outline-none focus:ring-2 ${t.ring}`}
             />
           </form>
 
@@ -134,7 +136,7 @@ export default function DashboardLayout({ navItems, searchPlaceholder, onSearch,
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-brand-50">
           <Outlet />
         </main>
       </div>

@@ -3,6 +3,9 @@ import { Loader2 } from "lucide-react";
 import Modal from "../Modal";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
+import ImageGalleryField from "./ImageGalleryField";
+import SingleFileField from "./SingleFileField";
+import { firstImageUrl } from "../../lib/mediaType";
 
 export default function PlanFormModal({ plan, onClose, onSaved }) {
   const { token } = useAuth();
@@ -11,6 +14,7 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
     title: plan?.title || "",
     plan_type: plan?.plan_type || "house",
     price: plan?.price || "",
+    license_price: plan?.license_price || "",
     city: plan?.city || "",
     bedrooms: plan?.bedrooms || "",
     bathrooms: plan?.bathrooms || "",
@@ -18,7 +22,10 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
     rating: plan?.rating || 4.5,
     badge: plan?.badge || "",
     is_prime_location: plan?.is_prime_location || false,
-    image_url: plan?.image_url || "",
+    images: plan?.images?.length ? plan.images : plan?.image_url ? [plan.image_url] : [],
+    document_url: plan?.document_url || "",
+    video_url: plan?.video_url || "",
+    zip_url: plan?.zip_url || "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -31,11 +38,16 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
       const payload = {
         ...form,
         price: Number(form.price),
+        license_price: form.license_price ? Number(form.license_price) : null,
         size_sqm: form.size_sqm ? Number(form.size_sqm) : null,
         bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
         bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
         rating: Number(form.rating),
         badge: form.badge || null,
+        image_url: firstImageUrl(form.images),
+        document_url: form.document_url || null,
+        video_url: form.video_url || null,
+        zip_url: form.zip_url || null,
       };
       const saved = isEdit
         ? await api.adminUpdatePlan(plan.id, payload, token)
@@ -76,7 +88,7 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-ink-900">Price (RWF)</label>
+            <label className="block text-sm font-semibold text-ink-900">Construction Estimate (RWF)</label>
             <input
               required
               type="number"
@@ -86,6 +98,19 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
               onChange={(e) => setForm({ ...form, price: e.target.value })}
             />
           </div>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-ink-900">Blueprint License Price (RWF)</label>
+          <p className="mt-0.5 text-xs text-slate-500">
+            What unlocking the full drawing pack costs on its own. Leave blank to hide this price line.
+          </p>
+          <input
+            type="number"
+            min="0"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+            value={form.license_price}
+            onChange={(e) => setForm({ ...form, license_price: e.target.value })}
+          />
         </div>
         <div>
           <label className="block text-sm font-semibold text-ink-900">City</label>
@@ -151,14 +176,32 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
             </label>
           </div>
         </div>
-        <div>
-          <label className="block text-sm font-semibold text-ink-900">Image URL</label>
-          <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-            value={form.image_url}
-            onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-          />
-        </div>
+        <ImageGalleryField images={form.images} onChange={(images) => setForm({ ...form, images })} />
+
+        <SingleFileField
+          label="Drawing Document (PDF preview)"
+          helpText="A preview of the plan document - full drawings unlock after purchase."
+          accept="application/pdf"
+          value={form.document_url}
+          onChange={(document_url) => setForm({ ...form, document_url })}
+        />
+
+        <SingleFileField
+          label="Walkthrough Video"
+          helpText="A short video showing the plan (optional)."
+          accept="video/*"
+          value={form.video_url}
+          onChange={(video_url) => setForm({ ...form, video_url })}
+        />
+
+        <SingleFileField
+          label="Deliverable ZIP (full drawing pack)"
+          helpText="The actual paid product - every file the client is owed once they've unlocked this plan. Never shown to a visitor who hasn't purchased it."
+          accept=".zip,application/zip"
+          value={form.zip_url}
+          onChange={(zip_url) => setForm({ ...form, zip_url })}
+        />
+
         <button
           disabled={saving}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-60"

@@ -18,6 +18,7 @@ router.delete("/users/:id", adminController.deleteUser);
 
 router.post("/properties", adminController.createProperty);
 router.patch("/properties/:id", adminController.updateProperty);
+router.patch("/properties/:id/approve", adminController.approveProperty);
 router.delete("/properties/:id", adminController.deleteProperty);
 
 router.post("/plans", adminController.createPlan);
@@ -34,5 +35,10 @@ router.patch("/plan-inquiries/:id/assign", adminController.assignPlanInquiry);
 
 router.get("/payments", adminController.listAllPayments);
 router.patch("/payments/:id/status", adminController.updatePaymentStatus);
+
+// Read-only oversight of every direct conversation on the platform -
+// compliance/moderation visibility, not a participant-only view.
+router.get("/conversations", adminController.listAllConversations);
+router.get("/conversations/:id", adminController.getConversationDetail);
 
 export default router;

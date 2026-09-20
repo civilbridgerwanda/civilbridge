@@ -8,6 +8,9 @@ import { fadeUp, stagger } from "../lib/motion";
 import Seo from "../components/Seo";
 import { SkeletonGrid, PropertyCardSkeleton } from "../components/Skeleton";
 import { RWANDA_LOCATIONS } from "../lib/locations";
+import { useAuth } from "../lib/AuthContext";
+import AuthGate from "../components/AuthGate";
+import { isAuthGateDismissed, dismissAuthGate } from "../lib/authGate";
 
 const categories = [
   { value: "all", label: "All Properties" },
@@ -73,11 +76,19 @@ function metaLine(p) {
 }
 
 export default function Marketplace() {
+  const { user, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [justAdded, setJustAdded] = useState(null);
+  const [showAuthGate, setShowAuthGate] = useState(false);
+
+  // Wait for auth to resolve before deciding whether to show the gate, so a
+  // signed-in visitor never sees it flash on before their session loads.
+  useEffect(() => {
+    if (!authLoading && !user && !isAuthGateDismissed()) setShowAuthGate(true);
+  }, [authLoading, user]);
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
@@ -144,12 +155,25 @@ export default function Marketplace() {
   );
 
   return (
-    <>
+    <div className="relative">
       <Seo
-        title="Marketplace"
+        title="Land & Property Marketplace"
         description="Browse verified houses, commercial properties, and land plots for sale across Rwanda on CivilBridge."
         path="/marketplace"
       />
+
+      {showAuthGate && (
+        <AuthGate
+          variant="soft"
+          from="/marketplace"
+          title="Sign in for the full experience"
+          message="Browsing is always free. Sign in to view full listing details, save favorites, and message owners directly."
+          onDismiss={() => {
+            dismissAuthGate();
+            setShowAuthGate(false);
+          }}
+        />
+      )}
 
       {/* Hero */}
       <section className="bg-gradient-to-r from-brand-700 to-brand-400 py-16 text-white">
@@ -160,7 +184,7 @@ export default function Marketplace() {
             transition={{ duration: 0.5 }}
             className="text-4xl font-extrabold md:text-5xl"
           >
-            Property Marketplace
+            Land & Property Marketplace
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -168,8 +192,8 @@ export default function Marketplace() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="mt-3 max-w-xl text-brand-50"
           >
-            Discover properties and land across Rwanda. Find your perfect investment or
-            dream home.
+            Browse plots of land and properties for sale across Rwanda - houses, commercial
+            buildings, and land ready to build on. Find your perfect investment or dream home.
           </motion.p>
         </div>
       </section>
@@ -310,7 +334,11 @@ export default function Marketplace() {
         {/* Results count + sort */}
         <div className="mt-6 flex items-center justify-between border-b border-slate-200 pb-4">
           <p className="text-sm text-slate-500">
-            {loading ? "Searching…" : `${properties.length} ${properties.length === 1 ? "property" : "properties"} found`}
+            {loading
+              ? "Searching…"
+              : user?.role === "admin"
+                ? `${properties.length} ${properties.length === 1 ? "property" : "properties"} found`
+                : "Showing results"}
           </p>
           <label className="flex items-center gap-2 text-sm text-slate-500">
             Sort by:
@@ -428,6 +456,6 @@ export default function Marketplace() {
           </Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }

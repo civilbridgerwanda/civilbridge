@@ -74,7 +74,7 @@ export function generateReply(message) {
   // Material comparison question.
   if (text.includes("brick") && text.includes("block")) {
     return [
-      "Here's a quick comparison for the Rwandan market:",
+      "Good question - this one comes up a lot! Here's a quick comparison for the Rwandan market:",
       "",
       "**Burnt brick:** Better thermal performance, classic look, typically 10-15% more expensive per sqm, slightly longer construction time.",
       "**Concrete block:** Faster to build with, more consistent pricing, easier to source everywhere, slightly less thermal insulation.",
@@ -118,8 +118,8 @@ export function generateReply(message) {
 
   // Generic fallback.
   return [
-    "I can help with that. To give you a useful answer, it helps to know your budget, the number of bedrooms (or building type), and the location.",
+    "Happy to help with that! To point you in the right direction, it'd help to know your budget, the number of bedrooms (or the type of building), and where you're building.",
     "",
-    "You can also try one of the quick actions below, or ask me things like construction costs, material choices, or land feasibility.",
+    "Feel free to try one of the quick actions below, or just ask me about construction costs, material choices, or land feasibility - whatever's on your mind.",
   ].join("\n");
 }

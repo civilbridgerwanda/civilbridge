@@ -17,6 +17,7 @@ import { trackEvent } from "../lib/analytics";
 import { fadeUp, stagger } from "../lib/motion";
 import Seo from "../components/Seo";
 import AnimatedCounter from "../components/AnimatedCounter";
+import FeaturedPropertiesCarousel from "../components/FeaturedPropertiesCarousel";
 
 const stats = [
   { value: 500, suffix: "+", label: "Verified Professionals" },
@@ -25,24 +26,6 @@ const stats = [
   { value: null, display: "24/7", label: "Platform Access" },
 ];
 
-const featuredProperties = [
-  {
-    title: "Estate Development",
-    image: "/images/home/estate-development.jpg",
-  },
-  {
-    title: "Prime Land Plots",
-    image: "/images/home/prime-land-plots.jpg",
-  },
-  {
-    title: "New Construction",
-    image: "/images/home/new-construction.jpg",
-  },
-  {
-    title: "Modern Residential Complex",
-    image: "/images/home/modern-residential.jpg",
-  },
-];
 
 const helpCards = [
   {
@@ -486,31 +469,7 @@ export default function Home() {
           </motion.p>
         </div>
 
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.1 }}
-          variants={stagger}
-          className="mt-12 flex snap-x gap-6 overflow-x-auto px-6 pb-4 [scrollbar-width:thin] md:mx-auto md:max-w-7xl"
-        >
-          {featuredProperties.map((p) => (
-            <motion.div
-              key={p.title}
-              variants={fadeUp}
-              className="group relative h-72 w-72 shrink-0 snap-start overflow-hidden rounded-2xl shadow-md md:w-80"
-            >
-              <img
-                src={p.image}
-                alt={p.title}
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-cover transition-transform duration-300 ease-[cubic-bezier(.22,.61,.36,1)] group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              <p className="absolute bottom-4 left-4 text-lg font-bold text-white">{p.title}</p>
-            </motion.div>
-          ))}
-        </motion.div>
+        <FeaturedPropertiesCarousel />
 
         <div className="mt-4 text-center">
           <Link to="/marketplace" className="inline-flex items-center gap-2 font-semibold text-brand-500 hover:underline">

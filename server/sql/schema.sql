@@ -24,6 +24,16 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified BOOLEAN DEFAULT FALSE,
   is_suspended BOOLEAN DEFAULT FALSE,
   plan ENUM('starter', 'professional', 'business') NOT NULL DEFAULT 'starter',
+  -- Freemium daily-credit system: starter-plan users get a fixed number of
+  -- credits that reset every 24h, spent only on actions where the AI does
+  -- real work (BOQ generation, deep analysis) - not on browsing or casual
+  -- chat. Paid plans (professional/business) bypass this check entirely.
+  credits_remaining INT NOT NULL DEFAULT 5,
+  credits_reset_at TIMESTAMP NULL DEFAULT NULL,
+  -- Set when a user asks to upgrade from Pricing; cleared once an admin
+  -- actually changes their `plan` (billing isn't wired up yet, so upgrades
+  -- are a manual admin action for now, not self-service checkout).
+  requested_plan ENUM('professional', 'business') NULL DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -56,6 +66,7 @@ CREATE TABLE IF NOT EXISTS experts (
   city VARCHAR(100),
   view_count INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_expert_user (user_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -74,9 +85,24 @@ CREATE TABLE IF NOT EXISTS properties (
   bedrooms INT NULL,
   bathrooms INT NULL,
   image_url VARCHAR(500),
+  images JSON NULL,
+  is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Listings an admin creates default to TRUE (trusted); ones a property
+  -- owner submits themselves are set FALSE at creation (see properties
+  -- controller) and hidden from public browsing until an admin approves
+  -- them from the dashboard.
+  is_approved BOOLEAN NOT NULL DEFAULT TRUE,
   status ENUM('available', 'pending', 'sold') DEFAULT 'available',
+  rating DECIMAL(2,1) DEFAULT 0.0,
+  review_count INT DEFAULT 0,
   view_count INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  -- Seed rows below use UUID() for `id`, a fresh value every migrate run,
+  -- so INSERT IGNORE can't detect them as duplicates by primary key alone.
+  -- image_url is already guaranteed unique across every property (see the
+  -- assertNoDuplicateImages check in migrate.js) so this constraint is what
+  -- actually makes re-running the seed idempotent.
+  UNIQUE KEY unique_property_image (image_url),
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
@@ -124,11 +150,25 @@ CREATE TABLE IF NOT EXISTS plans (
   bathrooms INT NULL,
   size_sqm DECIMAL(10,2),
   rating DECIMAL(2,1) DEFAULT 0.0,
+  review_count INT DEFAULT 0,
   badge ENUM('new', 'hot') NULL,
   is_prime_location BOOLEAN DEFAULT FALSE,
   image_url VARCHAR(500),
+  images JSON NULL,
+  document_url VARCHAR(500) NULL,
+  video_url VARCHAR(500) NULL,
+  -- The actual paid deliverable (full drawing pack/CAD files, zipped) -
+  -- distinct from document_url's PDF preview. Only ever exposed to admins
+  -- or an entitled purchaser, never in the public API response otherwise.
+  zip_url VARCHAR(500) NULL,
+  -- Separate from `price` (the construction estimate) - what unlocking the
+  -- full drawing pack costs on its own. NULL means the admin hasn't set one
+  -- yet, in which case the detail page just doesn't show that price line.
+  license_price DECIMAL(14,2) NULL,
   view_count INT DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  -- See the matching comment on properties.image_url - same idempotency fix.
+  UNIQUE KEY unique_plan_image (image_url)
 ) ENGINE=InnoDB;
 
 -- AI Studio conversations
@@ -136,6 +176,7 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
   id CHAR(36) NOT NULL PRIMARY KEY,
   user_id CHAR(36) NULL,
   title VARCHAR(200) NOT NULL DEFAULT 'New Conversation',
+  share_token VARCHAR(32) NULL UNIQUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -261,6 +302,10 @@ CREATE TABLE IF NOT EXISTS plan_inquiries (
   email VARCHAR(150) NOT NULL,
   whatsapp VARCHAR(30) NOT NULL,
   message TEXT,
+  -- Set when the inquiry is really a "book a site tour" request - optional,
+  -- since the same form/endpoint covers both a general question and a
+  -- scheduling request.
+  preferred_date DATETIME NULL,
   status ENUM('new', 'contacted', 'closed') DEFAULT 'new',
   assigned_expert_id CHAR(36) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -294,9 +339,70 @@ CREATE TABLE IF NOT EXISTS expert_portfolio (
   FOREIGN KEY (expert_id) REFERENCES experts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- One review per (property, reviewer) pair - submitting again updates the
+-- existing review rather than creating a duplicate. Mirrors expert_reviews.
+CREATE TABLE IF NOT EXISTS property_reviews (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  property_id CHAR(36) NOT NULL,
+  reviewer_id CHAR(36) NOT NULL,
+  rating TINYINT NOT NULL,
+  comment TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_property_review (property_id, reviewer_id),
+  FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+  FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- One review per (plan, reviewer) pair - submitting again updates the
+-- existing review rather than creating a duplicate. Mirrors expert_reviews.
+CREATE TABLE IF NOT EXISTS plan_reviews (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  plan_id CHAR(36) NOT NULL,
+  reviewer_id CHAR(36) NOT NULL,
+  rating TINYINT NOT NULL,
+  comment TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_plan_review (plan_id, reviewer_id),
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE,
+  FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- ==SEED DATA BELOW== (migrate.js splits the file on this exact comment
 -- to run column backfills between table creation and seeding - see its
 -- comment for why that order matters)
+
+-- Fixed test accounts for local development - real, loginable credentials
+-- (unlike the placeholder sample users below). Fixed UUIDs + ON DUPLICATE
+-- KEY UPDATE make this rigid by design: every `npm run migrate` resets
+-- these three accounts back to exactly this role/password, so they're
+-- always available for testing regardless of what's been done to them.
+INSERT INTO users (id, full_name, email, password_hash, role, email_verified)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Samuel', 'samuelnizeyimana505@gmail.com',
+    '$2a$10$6uwdzl7wjPeEYNf2Xd0u/el9SPS77UaRClukXLSitgD7jGdWKuxbW', 'admin', TRUE),
+  ('22222222-2222-2222-2222-222222222222', 'Sx Nizeyimana', 'sxnizeyimana@gmail.com',
+    '$2a$10$5wfSe6vuk/tEFQmCa9eKAuRXRrV1.n19eXpRSreXyGGH/G36fU9sq', 'expert', TRUE),
+  ('33333333-3333-3333-3333-333333333333', 'Kendo Lama', 'kendotlama12@gmail.com',
+    '$2a$10$HQpWzpQFTt93tJge75GwGe7lVI1ghf4ML4M23Leap2bFloCHhHP7a', 'client', TRUE)
+ON DUPLICATE KEY UPDATE
+  password_hash = VALUES(password_hash),
+  role = VALUES(role),
+  email_verified = VALUES(email_verified);
+
+-- Backing expert profile for the fixed engineer account above, so it shows
+-- up properly in the Expert Directory instead of just being a bare login.
+INSERT INTO experts
+  (id, user_id, category, specialty, specialization, years_experience, is_verified, rating, review_count, completed_projects, avatar_url, city, view_count)
+VALUES
+  ('22222222-2222-2222-2222-222222222223', '22222222-2222-2222-2222-222222222222',
+   'engineer', 'Structural Engineer', 'Residential & Commercial', 8, TRUE, 5.0, 0, 0,
+   'https://i.pravatar.cc/300?img=33', 'Kigali', 0)
+ON DUPLICATE KEY UPDATE
+  category = VALUES(category),
+  specialty = VALUES(specialty);
+
 -- Sample users backing the sample experts below
 -- (password_hash is a placeholder - these aren't real, loginable accounts)
 INSERT IGNORE INTO users (id, full_name, email, password_hash, role, email_verified)
@@ -386,18 +492,24 @@ VALUES
 -- Sample payments. No gateway is connected (see config/paymentProvider.js) -
 -- these rows exist purely so the Payments dashboards have realistic sample
 -- data to display instead of being empty on a fresh install.
+-- Fixed UUIDs (not UUID()) so this seed is actually idempotent - see the
+-- comment on the fixed test accounts above for why that matters. A business
+-- rule like "one payment per (payer, purpose, amount, status)" would be
+-- wrong here since real users legitimately can pay for the same thing
+-- twice, so a schema-level UNIQUE constraint isn't the right fix for this
+-- table the way it was for properties/plans/experts.
 INSERT IGNORE INTO payments (id, payer_id, recipient_type, recipient_id, amount, purpose, status, created_at)
 VALUES
-  (UUID(), (SELECT id FROM users WHERE email = 'david.nkusi@example.com'), 'expert',
+  ('44444444-4444-4444-4444-444444444441', (SELECT id FROM users WHERE email = 'david.nkusi@example.com'), 'expert',
    (SELECT e.id FROM experts e JOIN users u ON e.user_id = u.id WHERE u.email = 'marie.uwase@example.com'),
    45000, 'expert_consultation', 'completed', DATE_SUB(NOW(), INTERVAL 12 DAY)),
-  (UUID(), (SELECT id FROM users WHERE email = 'sarah.ingabire@example.com'), 'expert',
+  ('44444444-4444-4444-4444-444444444442', (SELECT id FROM users WHERE email = 'sarah.ingabire@example.com'), 'expert',
    (SELECT e.id FROM experts e JOIN users u ON e.user_id = u.id WHERE u.email = 'jean.mugabo@example.com'),
    60000, 'expert_consultation', 'completed', DATE_SUB(NOW(), INTERVAL 8 DAY)),
-  (UUID(), (SELECT id FROM users WHERE email = 'david.nkusi@example.com'), 'platform', NULL,
+  ('44444444-4444-4444-4444-444444444443', (SELECT id FROM users WHERE email = 'david.nkusi@example.com'), 'platform', NULL,
    15000, 'priority_review', 'completed', DATE_SUB(NOW(), INTERVAL 5 DAY)),
-  (UUID(), (SELECT id FROM users WHERE email = 'sarah.ingabire@example.com'), 'platform', NULL,
+  ('44444444-4444-4444-4444-444444444444', (SELECT id FROM users WHERE email = 'sarah.ingabire@example.com'), 'platform', NULL,
    25000, 'listing_boost', 'pending', DATE_SUB(NOW(), INTERVAL 2 DAY)),
-  (UUID(), (SELECT id FROM users WHERE email = 'david.nkusi@example.com'), 'expert',
+  ('44444444-4444-4444-4444-444444444445', (SELECT id FROM users WHERE email = 'david.nkusi@example.com'), 'expert',
    (SELECT e.id FROM experts e JOIN users u ON e.user_id = u.id WHERE u.email = 'emmanuel.habimana@example.com'),
    35000, 'expert_consultation', 'pending', DATE_SUB(NOW(), INTERVAL 1 DAY));

@@ -10,6 +10,7 @@ export const PlanInquiry = sequelize.define(
     email: { type: DataTypes.STRING(150), allowNull: false },
     whatsapp: { type: DataTypes.STRING(30), allowNull: false },
     message: { type: DataTypes.TEXT },
+    preferred_date: { type: DataTypes.DATE },
     status: { type: DataTypes.ENUM("new", "contacted", "closed"), defaultValue: "new" },
     assigned_expert_id: { type: DataTypes.UUID },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },

@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Plus, Calculator, CheckCircle2, ListChecks, Clock } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Calculator,
+  CheckCircle2,
+  ListChecks,
+  Clock,
+  AlertCircle,
+  Sparkles,
+  UserCheck,
+  ChevronDown,
+} from "lucide-react";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { socket } from "../../lib/socket";
+import { formatRelativeTime } from "../../lib/formatRelativeTime";
 import Seo from "../../components/Seo";
 import ContactSupportButton from "../../components/ContactSupportButton";
 import { PlanBadge, UpgradeSuggestion } from "../../components/PlanBadge";
@@ -13,6 +25,15 @@ const statusStyles = {
   ai_generated: "bg-blue-50 text-blue-600",
   under_review: "bg-amber-50 text-amber-700",
   verified: "bg-emerald-50 text-emerald-600",
+};
+
+// Metric-card accents keyed to the same states used everywhere else on the
+// dashboard, so "verified" always reads emerald and "pending" always reads
+// amber regardless of which component is showing it.
+const metricStyles = {
+  total: "bg-brand-50 text-brand-500",
+  verified: "bg-emerald-50 text-emerald-600",
+  pending: "bg-amber-50 text-amber-600",
 };
 
 export default function ClientDashboard() {
@@ -69,6 +90,58 @@ export default function ClientDashboard() {
     [estimates]
   );
 
+  // A lightweight activity feed synthesized from estimate state rather than
+  // a dedicated audit-log endpoint - each estimate contributes one entry per
+  // milestone it has actually reached (created, assigned, reviewed).
+  const activity = useMemo(() => {
+    const events = [];
+    for (const e of estimates) {
+      events.push({
+        id: `${e.id}-created`,
+        icon: Sparkles,
+        tone: "blue",
+        text: `AI estimate generated for "${e.project_name}"`,
+        at: e.created_at,
+      });
+      if (e.assigned_expert_id) {
+        const expert = experts.find((x) => x.id === e.assigned_expert_id);
+        events.push({
+          id: `${e.id}-assigned`,
+          icon: UserCheck,
+          tone: "brand",
+          text: `${expert ? expert.full_name : "An expert"} assigned to review "${e.project_name}"`,
+          at: e.updated_at,
+        });
+      }
+      if (e.status === "under_review") {
+        events.push({
+          id: `${e.id}-review`,
+          icon: Clock,
+          tone: "amber",
+          text: `"${e.project_name}" is under expert review`,
+          at: e.updated_at,
+        });
+      }
+      if (e.status === "verified") {
+        events.push({
+          id: `${e.id}-verified`,
+          icon: CheckCircle2,
+          tone: "emerald",
+          text: `"${e.project_name}" was verified by an expert`,
+          at: e.updated_at,
+        });
+      }
+    }
+    return events.sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 6);
+  }, [estimates, experts]);
+
+  const activityTone = {
+    blue: "bg-blue-50 text-blue-600",
+    brand: "bg-brand-50 text-brand-500",
+    amber: "bg-amber-50 text-amber-600",
+    emerald: "bg-emerald-50 text-emerald-600",
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
       <Seo title="My Dashboard" description="Your CivilBridge estimates." path="/dashboard" />
@@ -102,17 +175,27 @@ export default function ClientDashboard() {
 
       {!loading && !error && (
         <div className="mt-10 space-y-10">
+          {stats.pendingEstimates > 0 && (
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+              <p className="text-sm text-amber-800">
+                {stats.pendingEstimates} estimate{stats.pendingEstimates === 1 ? "" : "s"} awaiting expert review.
+                You'll be notified the moment {stats.pendingEstimates === 1 ? "it's" : "each is"} verified.
+              </p>
+            </div>
+          )}
+
           <section>
             <div className="grid gap-4 sm:grid-cols-3">
               {[
-                { icon: ListChecks, label: "Total Estimates", value: stats.totalEstimates },
-                { icon: CheckCircle2, label: "Verified Estimates", value: stats.verifiedEstimates },
-                { icon: Clock, label: "Pending Review", value: stats.pendingEstimates },
+                { key: "total", icon: ListChecks, label: "Total Estimates", value: stats.totalEstimates },
+                { key: "verified", icon: CheckCircle2, label: "Verified Estimates", value: stats.verifiedEstimates },
+                { key: "pending", icon: Clock, label: "Pending Review", value: stats.pendingEstimates },
               ].map((c) => {
                 const Icon = c.icon;
                 return (
-                  <div key={c.label} className="rounded-2xl border border-slate-200 p-5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                  <div key={c.label} className="rounded-2xl border border-brand-100 bg-white p-5 shadow-sm">
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${metricStyles[c.key]}`}>
                       <Icon className="h-4.5 w-4.5" />
                     </span>
                     <p className="mt-3 text-2xl font-extrabold text-ink-900">{c.value}</p>
@@ -131,9 +214,9 @@ export default function ClientDashboard() {
               Want a specific expert to review yours? Assign one directly instead of waiting in the general queue.
             </p>
             {estimates.length ? (
-              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+              <div className="mt-4 overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-slate-500">
+                  <thead className="bg-brand-50 text-slate-500">
                     <tr>
                       <th className="px-4 py-3">Project</th>
                       <th className="px-4 py-3">Type</th>
@@ -143,35 +226,61 @@ export default function ClientDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {estimates.map((e) => (
-                      <tr key={e.id} className="border-t border-slate-100">
-                        <td className="px-4 py-3 font-semibold text-ink-900">{e.project_name}</td>
-                        <td className="px-4 py-3 capitalize text-slate-500">{e.project_type}</td>
-                        <td className="px-4 py-3">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyles[e.status] || statusStyles.draft}`}>
-                            {e.status.replace("_", " ")}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            value={e.assigned_expert_id || ""}
-                            disabled={assigningId === e.id}
-                            onChange={(ev) => handleAssignExpert(e.id, ev.target.value)}
-                            className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-brand-400 focus:outline-none"
-                          >
-                            <option value="">
-                              {e.assigned_expert_id ? "Reassign..." : "Any expert"}
-                            </option>
-                            {experts.map((exp) => (
-                              <option key={exp.id} value={exp.id}>
-                                {exp.full_name} ({exp.specialty})
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-4 py-3 text-slate-400">{new Date(e.created_at).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
+                    {estimates.map((e) => {
+                      const assignedExpert = experts.find((x) => x.id === e.assigned_expert_id);
+                      return (
+                        <tr key={e.id} className="border-t border-slate-100">
+                          <td className="px-4 py-3 font-semibold text-ink-900">
+                            <Link to={`/estimates/${e.id}`} className="hover:text-brand-500 hover:underline">
+                              {e.project_name}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 capitalize text-slate-500">{e.project_type}</td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyles[e.status] || statusStyles.draft}`}>
+                              {e.status.replace("_", " ")}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {/* A native <select> stacked under a styled pill so it
+                                keeps working exactly as before (click anywhere
+                                on the pill opens the real dropdown), while
+                                reading as a compact status badge rather than a
+                                bare form control. */}
+                            <div className="relative inline-block">
+                              <span
+                                className={`pointer-events-none flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                                  assignedExpert ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                                } ${assigningId === e.id ? "opacity-60" : ""}`}
+                              >
+                                <UserCheck className="h-3.5 w-3.5" />
+                                {assigningId === e.id
+                                  ? "Assigning…"
+                                  : assignedExpert
+                                    ? assignedExpert.full_name
+                                    : "Any expert"}
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </span>
+                              <select
+                                value={e.assigned_expert_id || ""}
+                                disabled={assigningId === e.id}
+                                onChange={(ev) => handleAssignExpert(e.id, ev.target.value)}
+                                aria-label={`Assign an expert to ${e.project_name}`}
+                                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                              >
+                                <option value="">Any expert</option>
+                                {experts.map((exp) => (
+                                  <option key={exp.id} value={exp.id}>
+                                    {exp.full_name} ({exp.specialty})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-400">{new Date(e.created_at).toLocaleDateString()}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -181,6 +290,30 @@ export default function ClientDashboard() {
               </p>
             )}
           </section>
+
+          {activity.length > 0 && (
+            <section>
+              <h2 className="text-lg font-bold text-ink-900">Recent Activity</h2>
+              <div className="mt-4 rounded-2xl border border-brand-100 bg-white p-5 shadow-sm">
+                <ol className="relative space-y-5 border-l border-slate-100 pl-6">
+                  {activity.map((ev) => {
+                    const Icon = ev.icon;
+                    return (
+                      <li key={ev.id} className="relative">
+                        <span
+                          className={`absolute -left-[31px] flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white ${activityTone[ev.tone]}`}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
+                        <p className="text-sm text-ink-900">{ev.text}</p>
+                        <p className="mt-0.5 text-xs text-slate-400">{formatRelativeTime(ev.at)}</p>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>
