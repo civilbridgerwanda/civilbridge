@@ -4,7 +4,7 @@ import { Check, Sparkles, Clock } from "lucide-react";
 import Seo from "../components/Seo";
 import BillingToggle from "../components/BillingToggle";
 import { useAuth } from "../lib/AuthContext";
-import { api } from "../lib/api";
+import PaymentRequestModal from "../components/PaymentRequestModal";
 
 const PLANS = [
   {
@@ -28,13 +28,9 @@ const PLANS = [
     monthly: 15000,
     annual: 150000,
     highlighted: true,
-    // Softened from "Get Started" - this tier has a specific paid price
-    // that the disclosure above says isn't final yet, so an urgent
-    // sign-up CTA right under that disclosure reads as a contradiction.
-    // Billing isn't wired up either, so this doesn't self-checkout - it
-    // submits a request an admin approves manually (see requestUpgrade
-    // below and PATCH /api/admin/users/:id/plan on the backend).
-    cta: { label: "Join the Waitlist", to: "/get-started" },
+    // Signed-out visitors are sent to sign up; signed-in ones open the
+    // payment flow (see PaymentRequestModal) instead of this link.
+    cta: { label: "Get Started", to: "/get-started" },
     features: [
       "Everything in Starter",
       "Unlimited expert messaging",
@@ -70,23 +66,8 @@ function formatPrice(amount) {
 export default function Pricing() {
   const { user, token } = useAuth();
   const [billing, setBilling] = useState("monthly");
-  const [requesting, setRequesting] = useState(null); // plan value currently being requested
+  const [checkoutPlan, setCheckoutPlan] = useState(null); // the PLANS entry being paid for
   const [requestedPlan, setRequestedPlan] = useState(user?.requested_plan ?? null);
-  const [requestError, setRequestError] = useState(null);
-
-  async function handleRequestUpgrade(planValue) {
-    if (!token) return; // handled by the Link fallback below, not reachable here
-    setRequesting(planValue);
-    setRequestError(null);
-    try {
-      await api.requestUpgrade(planValue, token);
-      setRequestedPlan(planValue);
-    } catch (err) {
-      setRequestError(err.message);
-    } finally {
-      setRequesting(null);
-    }
-  }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-16">
@@ -107,10 +88,6 @@ export default function Pricing() {
         </p>
 
         <BillingToggle value={billing} onChange={setBilling} />
-
-        {requestError && (
-          <p className="mx-auto mt-4 max-w-md rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{requestError}</p>
-        )}
       </div>
 
       <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -168,11 +145,10 @@ export default function Pricing() {
               ) : plan.planValue && token ? (
                 <button
                   type="button"
-                  disabled={requesting === plan.planValue}
-                  onClick={() => handleRequestUpgrade(plan.planValue)}
-                  className="mt-8 block w-full rounded-lg bg-brand-500 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0 disabled:opacity-60"
+                  onClick={() => setCheckoutPlan(plan)}
+                  className="mt-8 block w-full rounded-lg bg-brand-500 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,opacity,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
                 >
-                  {requesting === plan.planValue ? "Sending…" : plan.cta.label}
+                  Upgrade to {plan.name}
                 </button>
               ) : (
                 <Link
@@ -192,10 +168,21 @@ export default function Pricing() {
       </div>
 
       <div className="mt-12 rounded-xl bg-amber-50 px-5 py-4 text-center text-sm text-amber-800">
-        <strong>Note:</strong> billing isn't live yet — no card details are collected here.
-        Pricing and plan details above are placeholders and will be updated once payment
-        processing is connected (see the Payments section of the README).
+        <strong>How payment works:</strong> choose Mobile Money, bank transfer, or card, and submit
+        your request. Our team confirms the payment, and your plan then activates automatically.
+        Prices shown are not final and may change before launch.
       </div>
+
+      {checkoutPlan && (
+        <PaymentRequestModal
+          title={`Upgrade to ${checkoutPlan.name}`}
+          summary={`${checkoutPlan.name} plan - billed ${billing === "monthly" ? "monthly" : "annually"}`}
+          amount={billing === "monthly" ? checkoutPlan.monthly : checkoutPlan.annual}
+          payload={{ purpose: "plan_upgrade", target_plan: checkoutPlan.planValue, billing_period: billing }}
+          onSubmitted={() => setRequestedPlan(checkoutPlan.planValue)}
+          onClose={() => setCheckoutPlan(null)}
+        />
+      )}
 
       <div className="mt-16 text-center">
         <p className="text-slate-500">Have questions about which plan fits your project?</p>

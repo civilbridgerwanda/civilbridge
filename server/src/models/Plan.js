@@ -7,6 +7,7 @@ export const Plan = sequelize.define(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     title: { type: DataTypes.STRING(200), allowNull: false },
+    description: { type: DataTypes.TEXT },
     plan_type: { type: DataTypes.ENUM("house", "apartment", "land", "commercial"), allowNull: false },
     price: { type: DataTypes.DECIMAL(14, 2), allowNull: false },
     currency: { type: DataTypes.STRING(10), defaultValue: "RWF" },

@@ -501,7 +501,7 @@ export async function updatePlan(req, res) {
       return res.status(404).json({ success: false, message: "Plan not found" });
     }
     const editable = [
-      "title", "plan_type", "price", "city", "bedrooms", "bathrooms", "size_sqm", "rating", "badge",
+      "title", "description", "plan_type", "price", "city", "bedrooms", "bathrooms", "size_sqm", "rating", "badge",
       "is_prime_location", "image_url", "images", "document_url", "video_url", "zip_url", "license_price",
     ];
     for (const field of editable) {

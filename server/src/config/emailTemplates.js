@@ -100,6 +100,66 @@ export function newListingEmail({ kind, title, id }) {
   );
 }
 
+const METHOD_LABELS = { mobile_money: "Mobile Money", bank_transfer: "Bank transfer", card: "Card" };
+const money = (currency, amount) => `${currency} ${Number(amount).toLocaleString()}`;
+
+// Sent to the client the moment they submit a payment, so they always have
+// a written record of what they asked for and what happens next.
+export function paymentReceiptEmail({ fullName, notes, amount, currency, method, reference }) {
+  return wrap(
+    "We've received your payment request",
+    `<p>Hi ${fullName},</p>
+     <p>Thanks - we've logged your payment for <strong>${notes}</strong>.</p>
+     <table style="width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;">
+       <tr><td style="padding:6px 0; color:#64748b;">Amount</td><td style="padding:6px 0; text-align:right;"><strong>${money(currency, amount)}</strong></td></tr>
+       <tr><td style="padding:6px 0; color:#64748b;">Method</td><td style="padding:6px 0; text-align:right;">${METHOD_LABELS[method] || method}</td></tr>
+       ${reference ? `<tr><td style="padding:6px 0; color:#64748b;">Your reference</td><td style="padding:6px 0; text-align:right;">${reference}</td></tr>` : ""}
+       <tr><td style="padding:6px 0; color:#64748b;">Status</td><td style="padding:6px 0; text-align:right;">Awaiting confirmation</td></tr>
+     </table>
+     <p>Our team confirms the money has arrived, and the moment they do, your access unlocks
+     <strong>automatically</strong> - there's nothing more you need to do. You'll get another
+     email when that happens.</p>
+     ${button("View My Payments", "/payments")}`
+  );
+}
+
+// Sent to whoever handles the money, so a submitted payment never sits
+// unnoticed waiting for someone to happen to open the admin panel.
+export function paymentAlertEmail({ payerName, payerEmail, notes, amount, currency, method, reference }) {
+  return wrap(
+    "New payment to verify",
+    `<p><strong>${payerName}</strong> (${payerEmail}) just submitted a payment:</p>
+     <table style="width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;">
+       <tr><td style="padding:6px 0; color:#64748b;">For</td><td style="padding:6px 0; text-align:right;"><strong>${notes}</strong></td></tr>
+       <tr><td style="padding:6px 0; color:#64748b;">Amount</td><td style="padding:6px 0; text-align:right;"><strong>${money(currency, amount)}</strong></td></tr>
+       <tr><td style="padding:6px 0; color:#64748b;">Method</td><td style="padding:6px 0; text-align:right;">${METHOD_LABELS[method] || method}</td></tr>
+       <tr><td style="padding:6px 0; color:#64748b;">Client's reference</td><td style="padding:6px 0; text-align:right;">${reference || "not provided"}</td></tr>
+     </table>
+     <p>Check the money actually arrived (${METHOD_LABELS[method] || method} records), then mark it
+     <strong>Completed</strong> in the Payments tab. The client's access unlocks automatically the
+     moment you do - no other step needed.</p>
+     ${button("Open Payments", "/admin?tab=Payments")}`
+  );
+}
+
+// Sent when a payment is marked completed - the client's proof that the
+// thing they paid for is now active.
+export function paymentConfirmedEmail({ fullName, notes, amount, currency, purpose, planId }) {
+  const isUpgrade = purpose === "plan_upgrade";
+  return wrap(
+    isUpgrade ? "Your plan is active" : "Your download is unlocked",
+    `<p>Hi ${fullName},</p>
+     <p>We've confirmed your payment of <strong>${money(currency, amount)}</strong> for
+     <strong>${notes}</strong>. ${
+       isUpgrade
+         ? "Your new plan and its limits are active right now."
+         : "You can download everything for this plan right now."
+     }</p>
+     ${button(isUpgrade ? "Go to My Account" : "Download My Plan", isUpgrade ? "/settings" : `/plans/${planId}`)}
+     <p>Thank you for choosing CivilBridge.</p>`
+  );
+}
+
 export function planInquiryConfirmationEmail(fullName, planTitle, planId) {
   return wrap(
     "We've received your request",

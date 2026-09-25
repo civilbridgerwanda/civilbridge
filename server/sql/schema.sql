@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS estimate_items (
 CREATE TABLE IF NOT EXISTS plans (
   id CHAR(36) NOT NULL PRIMARY KEY,
   title VARCHAR(200) NOT NULL,
+  description TEXT NULL,
   plan_type ENUM('house', 'apartment', 'land', 'commercial') NOT NULL,
   price DECIMAL(14,2) NOT NULL,
   currency VARCHAR(10) DEFAULT 'RWF',
@@ -225,6 +226,9 @@ CREATE TABLE IF NOT EXISTS payments (
   reference_type VARCHAR(50) NULL,
   reference_id CHAR(36) NULL,
   status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
+  payment_method VARCHAR(30) NULL,
+  target_plan VARCHAR(30) NULL,
+  notes VARCHAR(500) NULL,
   provider VARCHAR(50) NULL,
   provider_reference VARCHAR(255) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

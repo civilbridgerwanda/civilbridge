@@ -14,7 +14,21 @@ export const Payment = sequelize.define(
     reference_type: { type: DataTypes.STRING(50) },
     reference_id: { type: DataTypes.UUID },
     status: { type: DataTypes.ENUM("pending", "completed", "failed", "refunded"), defaultValue: "pending" },
+    // How the payer says they paid: mobile_money | bank_transfer | card.
+    // Tells whoever reconciles the payment where to verify it (MoMo
+    // statement vs bank statement vs card processor).
+    payment_method: { type: DataTypes.STRING(30) },
+    // For purpose "plan_upgrade": which tier this payment buys
+    // (professional | business). reference_id is a UUID column so it can't
+    // hold a tier name.
+    target_plan: { type: DataTypes.STRING(30) },
+    // Human-readable description of exactly what was bought, set
+    // server-side, so the reconciler never has to guess from ids.
+    notes: { type: DataTypes.STRING(500) },
     provider: { type: DataTypes.STRING(50) },
+    // Transaction/receipt reference entered by the payer (MoMo transaction
+    // id, bank slip number...) - or, once a gateway is connected, the
+    // gateway's own reference.
     provider_reference: { type: DataTypes.STRING(255) },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },

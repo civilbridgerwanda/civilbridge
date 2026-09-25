@@ -1,18 +1,38 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Lock, FileCheck, Calculator } from "lucide-react";
 import Modal from "./Modal";
+import PaymentRequestModal from "./PaymentRequestModal";
+import { ESTIMATE_BUNDLE_MULTIPLIER } from "../lib/paymentMethods";
 
-// The conversion paths from the plan detail page's "Download Everything"
-// button. Billing isn't wired up yet (see Pricing.jsx's admin-approved
-// upgrade flow), so every route here is informational - it explains the
-// choice and sends the person to Pricing/Contact rather than taking a
-// payment, consistent with how PremiumBlur handles the same situation
-// elsewhere on this page.
-export default function PlanUnlockModal({ onClose, licensePrice, currency, planTitle }) {
-  // The "with estimate" bundle is priced a little above the plain license -
-  // framed as an upgrade you get more from, not a consolation prize for
-  // losing the free standalone estimator link.
-  const bundlePrice = licensePrice ? Math.round(Number(licensePrice) * 1.15) : null;
+// The ways to get a plan's full drawing pack, opened from the plan page's
+// "Download Everything" button:
+//   - subscribe (Professional/Business include unlimited downloads)
+//   - buy just this plan (pay as you go)
+//   - buy it bundled with an expert cost estimate
+// The two purchases open the shared payment flow; once the team confirms
+// the payment, the plan page unlocks by itself - nothing to re-request.
+export default function PlanUnlockModal({ onClose, licensePrice, currency, planTitle, planId, onPurchased }) {
+  const [checkout, setCheckout] = useState(null); // null | "license" | "bundle"
+
+  // Priced a little above the plain license - framed as an upgrade you get
+  // more from, not a consolation for losing the standalone estimator link.
+  const bundlePrice = licensePrice ? Math.round(Number(licensePrice) * ESTIMATE_BUNDLE_MULTIPLIER) : null;
+
+  if (checkout) {
+    const withEstimate = checkout === "bundle";
+    return (
+      <PaymentRequestModal
+        title={withEstimate ? "Download + Cost Estimate" : "Download this plan"}
+        summary={`${planTitle || "Plan"} - ${withEstimate ? "full drawing pack plus an expert-verified cost estimate" : "full drawing pack, every file and CAD source"}`}
+        amount={withEstimate ? bundlePrice : licensePrice}
+        currency={currency}
+        payload={{ purpose: "plan_license", reference_id: planId, include_estimate: withEstimate }}
+        onSubmitted={onPurchased}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <Modal title="Download Everything" onClose={onClose} maxWidth="max-w-md">
@@ -52,12 +72,22 @@ export default function PlanUnlockModal({ onClose, licensePrice, currency, planT
               ? `Download this single drawing pack for ${currency} ${Number(licensePrice).toLocaleString()}.`
               : "Download just this single drawing pack, no subscription needed."}
           </p>
-          <Link
-            to="/contact"
-            className="mt-3 block rounded-lg border border-slate-300 bg-slate-50 py-2 text-center text-sm font-semibold text-ink-900 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-slate-100"
-          >
-            Request This Plan
-          </Link>
+          {licensePrice ? (
+            <button
+              type="button"
+              onClick={() => setCheckout("license")}
+              className="mt-3 block w-full rounded-lg border border-slate-300 bg-slate-50 py-2 text-center text-sm font-semibold text-ink-900 transition-colors duration-200 hover:bg-slate-100"
+            >
+              Buy This Plan
+            </button>
+          ) : (
+            <Link
+              to="/contact"
+              className="mt-3 block rounded-lg border border-slate-300 bg-slate-50 py-2 text-center text-sm font-semibold text-ink-900 transition-colors duration-200 hover:bg-slate-100"
+            >
+              Ask for a Quote
+            </Link>
+          )}
         </div>
 
         <div className="rounded-xl border border-gold-400 bg-gradient-to-br from-white to-amber-50 p-4">
@@ -73,17 +103,28 @@ export default function PlanUnlockModal({ onClose, licensePrice, currency, planT
               ? `Get the drawing pack plus a full expert-verified cost estimate for ${currency} ${bundlePrice.toLocaleString()}.`
               : "Get the drawing pack plus a full expert-verified cost estimate for this plan."}
           </p>
-          <Link
-            to="/contact"
-            className="mt-3 block rounded-lg bg-gold-500 py-2 text-center text-sm font-semibold text-ink-900 transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
-          >
-            Request This Bundle
-          </Link>
+          {bundlePrice ? (
+            <button
+              type="button"
+              onClick={() => setCheckout("bundle")}
+              className="mt-3 block w-full rounded-lg bg-gold-500 py-2 text-center text-sm font-semibold text-ink-900 transition-[background-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+            >
+              Buy This Bundle
+            </button>
+          ) : (
+            <Link
+              to="/contact"
+              className="mt-3 block rounded-lg bg-gold-500 py-2 text-center text-sm font-semibold text-ink-900 transition-[background-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+            >
+              Ask for a Quote
+            </Link>
+          )}
         </div>
       </div>
 
       <p className="mt-4 text-center text-xs text-slate-400">
-        Billing isn't live yet - every option above routes to our team, who'll follow up directly.
+        Pay by Mobile Money, bank transfer, or card. Once our team confirms your payment, your download unlocks
+        automatically.
       </p>
     </Modal>
   );

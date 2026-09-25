@@ -40,6 +40,23 @@ export function AuthProvider({ children }) {
     if (user?.id) socket.emit("join:room", `user:${user.id}`);
   }, [user?.id]);
 
+  // When a payment is confirmed (or reversed), the server pushes a
+  // notification and the person's plan / per-plan access changes. Refresh
+  // the user right away so limits and badges update without a reload, and
+  // tell any open page (e.g. a plan they're viewing) to re-check its own
+  // data via a window event.
+  useEffect(() => {
+    if (!token) return;
+    const ENTITLEMENT_TYPES = ["plan_upgraded", "plan_downgraded", "plan_license_granted", "plan_license_revoked"];
+    function handleNotification(n) {
+      if (!ENTITLEMENT_TYPES.includes(n?.type)) return;
+      api.me(token).then(setUser).catch(() => {});
+      window.dispatchEvent(new CustomEvent("civilbridge:entitlements-changed"));
+    }
+    socket.on("notification:new", handleNotification);
+    return () => socket.off("notification:new", handleNotification);
+  }, [token]);
+
   async function login(email, password) {
     const data = await api.login({ email, password });
     applySession(data);

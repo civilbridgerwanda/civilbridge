@@ -9,6 +9,7 @@ import {
   FileText,
   ArrowLeft,
   Loader2,
+  Clock,
   Download,
   ShieldCheck,
   BadgeCheck,
@@ -22,7 +23,6 @@ import ImageGallery from "../components/ImageGallery";
 import SpecTable from "../components/SpecTable";
 import StarRating from "../components/StarRating";
 import ReviewSection from "../components/ReviewSection";
-import PremiumBlur from "../components/PremiumBlur";
 import OptionSelector from "../components/OptionSelector";
 import { getPlanBadge } from "../lib/isNew";
 
@@ -34,9 +34,6 @@ function badgeStyle(badge) {
 
 const TABS = [
   { key: "overview", label: "Overview" },
-  { key: "structural", label: "Structural & Engineering" },
-  { key: "compliance", label: "Compliance & Zoning" },
-  { key: "boq", label: "Bill of Quantities" },
   { key: "reviews", label: "Reviews" },
 ];
 
@@ -49,10 +46,8 @@ const LOT_ORIENTATION_OPTIONS = [
   "Corner Lot Optimization",
 ];
 
-// Free preview photos before the gallery gates the rest behind the paid
-// unlock - matches the same "presentation-only paywall, admin bypasses"
-// convention PremiumBlur already uses for the Bill of Quantities tab, so
-// the two gates behave consistently across the page.
+// Free preview photos before the gallery locks the rest behind the paid
+// unlock (which the server confirms - see `entitled` below).
 const FREE_IMAGE_PREVIEW_COUNT = 2;
 
 export default function PlanDetail() {
@@ -75,6 +70,16 @@ export default function PlanDetail() {
       .then(setPlan)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  }, [id, token]);
+
+  // If this person's payment is confirmed while they have the page open,
+  // re-fetch so the download unlocks in front of them.
+  useEffect(() => {
+    function refetch() {
+      api.getPlan(id, token).then(setPlan).catch(() => {});
+    }
+    window.addEventListener("civilbridge:entitlements-changed", refetch);
+    return () => window.removeEventListener("civilbridge:entitlements-changed", refetch);
   }, [id, token]);
 
   // Similar plans: same type + city first; widen to just the same type if
@@ -132,13 +137,17 @@ export default function PlanDetail() {
   const referenceCode = `PL-${plan.id.slice(0, 6).toUpperCase()}`;
   const images = plan.images?.length ? plan.images : plan.image_url ? [plan.image_url] : [];
   const isAdmin = user?.role === "admin";
-  const lockedFrom = !isAdmin && images.length > FREE_IMAGE_PREVIEW_COUNT ? FREE_IMAGE_PREVIEW_COUNT : null;
+  // `entitled` comes from the server: an admin, a paid subscriber, or
+  // someone whose payment for this exact plan has been confirmed. Nothing
+  // on this page decides that itself, so it can't disagree with the API.
+  const entitled = Boolean(plan.entitled);
+  const lockedFrom = !entitled && images.length > FREE_IMAGE_PREVIEW_COUNT ? FREE_IMAGE_PREVIEW_COUNT : null;
 
   return (
     <>
       <Seo
         title={plan.title}
-        description={`${plan.title}${plan.city ? ` in ${plan.city}` : ""} - CivilBridge building plan.`}
+        description={plan.description || `${plan.title}${plan.city ? ` in ${plan.city}` : ""} - CivilBridge building plan.`}
         path={`/plans/${plan.id}`}
       />
 
@@ -241,10 +250,7 @@ export default function PlanDetail() {
             <div className="mt-5">
               {tab === "overview" && (
                 <div className="space-y-5">
-                  <p className="whitespace-pre-line text-slate-600">
-                    This {plan.plan_type} plan is ready for review. Talk to an expert below for the
-                    full design brief, or get a cost estimate tailored to this layout.
-                  </p>
+                  {plan.description && <p className="whitespace-pre-line text-slate-600">{plan.description}</p>}
                   <SpecTable
                     rows={[
                       { label: "Plan Type", value: plan.plan_type },
@@ -268,42 +274,6 @@ export default function PlanDetail() {
                     </div>
                   )}
                 </div>
-              )}
-
-              {tab === "structural" && (
-                <SpecTable
-                  rows={[
-                    { label: "Foundation Type", value: "Reinforced concrete slab" },
-                    { label: "Wall Materials", value: "Eco-brick / insulated concrete forms" },
-                    { label: "Roofing Specs", value: "Galvanized standing seam steel" },
-                    { label: "Electrical Load", value: "Three-phase 100A baseline" },
-                    { label: "HVAC", value: "Natural ventilation with optional split-unit provisioning" },
-                  ]}
-                />
-              )}
-
-              {tab === "compliance" && (
-                <SpecTable
-                  rows={[
-                    { label: "Structural Setbacks", value: "Per local municipal zoning guidelines" },
-                    { label: "Building Height", value: "Within standard residential/commercial thresholds" },
-                    { label: "Environmental Approval", value: "Required before groundbreaking" },
-                    { label: "Wastewater Disposal", value: "Connects to municipal sewage or septic system" },
-                  ]}
-                />
-              )}
-
-              {tab === "boq" && (
-                <PremiumBlur title="Full Bill of Quantities Locked">
-                  <SpecTable
-                    rows={[
-                      { label: "Concrete Volume", value: "Estimated cubic meters" },
-                      { label: "Structural Steel", value: "Estimated weight" },
-                      { label: "Finish Grade", value: "Recommended materials" },
-                      { label: "Format", value: "Zipped file, ready for execution" },
-                    ]}
-                  />
-                </PremiumBlur>
               )}
 
               {tab === "reviews" && (
@@ -346,10 +316,10 @@ export default function PlanDetail() {
                 </p>
               </div>
 
-              {isAdmin ? (
+              {entitled ? (
                 <>
                   <div className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 py-2.5 text-center text-sm font-semibold text-emerald-700">
-                    <ShieldCheck className="h-4 w-4" /> Full Access (Admin)
+                    <ShieldCheck className="h-4 w-4" /> {isAdmin ? "Full Access (Admin)" : "Unlocked - this plan is yours"}
                   </div>
                   {plan.zip_url ? (
                     <a
@@ -360,9 +330,22 @@ export default function PlanDetail() {
                       <Download className="h-4 w-4" /> Download Everything
                     </a>
                   ) : (
-                    <p className="mt-3 text-center text-xs text-slate-400">No deliverable ZIP uploaded for this plan yet.</p>
+                    <p className="mt-3 text-center text-xs text-slate-400">
+                      {isAdmin
+                        ? "No deliverable ZIP uploaded for this plan yet."
+                        : "Your files are being prepared - our team will send them to you shortly."}
+                    </p>
                   )}
                 </>
+              ) : plan.pending_payment ? (
+                <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-center">
+                  <p className="flex items-center justify-center gap-2 text-sm font-semibold text-amber-800">
+                    <Clock className="h-4 w-4" /> Payment awaiting confirmation
+                  </p>
+                  <p className="mt-1 text-xs text-amber-700">
+                    This page unlocks by itself the moment our team confirms it - no need to contact us.
+                  </p>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -448,6 +431,8 @@ export default function PlanDetail() {
           licensePrice={plan.license_price}
           currency={plan.currency}
           planTitle={plan.title}
+          planId={plan.id}
+          onPurchased={() => setPlan((p) => ({ ...p, pending_payment: true }))}
           onClose={() => setShowUnlock(false)}
         />
       )}

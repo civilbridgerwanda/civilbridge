@@ -3,6 +3,7 @@ import { Plan, PlanInquiry, PlanReview, User } from "../models/index.js";
 import { sendMail } from "../config/mailer.js";
 import { planInquiryConfirmationEmail } from "../config/emailTemplates.js";
 import { notify } from "../lib/notify.js";
+import { hasPlanAccess, hasPendingPlanLicense } from "../lib/entitlements.js";
 
 const orderMap = {
   featured: [
@@ -72,12 +73,18 @@ export async function getById(req, res) {
     }
     plan.increment("view_count").catch(() => {});
 
-    // zip_url is the actual paid deliverable, not a preview - there's no
-    // purchase/entitlement system wired up yet, so the only safe default is
-    // to withhold the real download link from everyone except admins rather
-    // than hand it out to any signed-in visitor.
+    // zip_url is the actual paid deliverable, not a preview - it's only
+    // included for someone entitled to it (an admin, a Professional/Business
+    // subscriber, or a client with a completed payment for this exact plan;
+    // see lib/entitlements.js). Everyone else gets `entitled: false` and no
+    // link, plus whether a payment of theirs is already waiting on
+    // confirmation so the page can say so instead of offering to pay twice.
     const data = plan.toJSON();
-    if (req.user.role !== "admin") delete data.zip_url;
+    data.entitled = await hasPlanAccess(req.user.sub, plan.id);
+    if (!data.entitled) {
+      delete data.zip_url;
+      data.pending_payment = await hasPendingPlanLicense(req.user.sub, plan.id);
+    }
 
     res.json({ success: true, data });
   } catch (err) {

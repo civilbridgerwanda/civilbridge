@@ -86,10 +86,9 @@ export default function Payments() {
       </div>
 
       <div className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        <strong>Note:</strong> no payment gateway is connected yet. Payments made here are
-        recorded as "pending" and reconciled manually by an admin - no real charge happens.
-        See the README for how to connect a real provider (Flutterwave is recommended for
-        Rwanda: cards + MTN/Airtel Mobile Money).
+        <strong>How it works:</strong> payments are confirmed by our team. Once one is marked
+        completed, anything it bought (a plan upgrade or a plan download) unlocks automatically.
+        Buying a plan or download happens from the Pricing page or the plan's own page.
       </div>
 
       {showForm && (
@@ -189,7 +188,12 @@ function PaymentsTable({ payments, emptyMessage, showPayer }) {
           {payments.map((p) => (
             <tr key={p.id} className="border-t border-slate-100">
               {showPayer && <td className="px-4 py-3 text-slate-500">{p.payer?.full_name || "—"}</td>}
-              <td className="px-4 py-3 font-semibold capitalize text-ink-900">{p.purpose.replace(/_/g, " ")}</td>
+              <td className="px-4 py-3 font-semibold text-ink-900">
+                {p.notes || <span className="capitalize">{p.purpose.replace(/_/g, " ")}</span>}
+                {p.payment_method && (
+                  <span className="block text-xs font-normal capitalize text-slate-400">{p.payment_method.replace(/_/g, " ")}</span>
+                )}
+              </td>
               <td className="px-4 py-3 text-slate-600">
                 {p.currency} {Number(p.amount).toLocaleString()}
               </td>

@@ -12,6 +12,7 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
   const isEdit = Boolean(plan);
   const [form, setForm] = useState({
     title: plan?.title || "",
+    description: plan?.description || "",
     plan_type: plan?.plan_type || "house",
     price: plan?.price || "",
     license_price: plan?.license_price || "",
@@ -44,6 +45,7 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
         bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
         rating: Number(form.rating),
         badge: form.badge || null,
+        description: form.description.trim() || null,
         image_url: firstImageUrl(form.images),
         document_url: form.document_url || null,
         video_url: form.video_url || null,
@@ -71,6 +73,18 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-ink-900">Description</label>
+          <p className="mt-0.5 text-xs text-slate-500">
+            What this plan is and who it suits - shown on the plan's page. Describe the real design; there's no default text.
+          </p>
+          <textarea
+            rows={4}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">

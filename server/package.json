@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "migrate": "node src/scripts/migrate.js"
+    "migrate": "node src/scripts/migrate.js",
+    "migrate:sample": "node src/scripts/migrate.js --with-sample-data",
+    "clean-samples": "node src/scripts/clean-samples.js",
+    "create-admin": "node src/scripts/create-admin.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -42,6 +42,10 @@ const columnBackfills = [
   "ALTER TABLE plans ADD COLUMN document_url VARCHAR(500) NULL",
   "ALTER TABLE plans ADD COLUMN video_url VARCHAR(500) NULL",
   "ALTER TABLE plans ADD COLUMN zip_url VARCHAR(500) NULL",
+  "ALTER TABLE plans ADD COLUMN description TEXT NULL",
+  "ALTER TABLE payments ADD COLUMN payment_method VARCHAR(30) NULL",
+  "ALTER TABLE payments ADD COLUMN target_plan VARCHAR(30) NULL",
+  "ALTER TABLE payments ADD COLUMN notes VARCHAR(500) NULL",
   "ALTER TABLE plans ADD COLUMN review_count INT DEFAULT 0",
   "ALTER TABLE plans ADD COLUMN license_price DECIMAL(14,2) NULL",
   "ALTER TABLE plan_inquiries ADD COLUMN preferred_date DATETIME NULL",
@@ -89,6 +93,12 @@ function assertNoDuplicateImages(seedSql) {
  *      sample rows silently skips them instead of throwing.
  */
 async function migrate() {
+  // Sample data is opt-in. The seed half of schema.sql includes fake
+  // experts/listings AND three fixed accounts whose passwords/roles it
+  // resets on every run - fine for a throwaway dev database, wrong for a
+  // real one (deploy.sh runs this on every deploy). Run
+  // `npm run migrate:sample` when you actually want the demo content.
+  const withSampleData = process.argv.includes("--with-sample-data");
   const sql = fs.readFileSync(schemaPath, "utf8");
   const markerIndex = sql.indexOf(SEED_MARKER);
   if (markerIndex === -1) {
@@ -99,12 +109,14 @@ async function migrate() {
   const schemaSql = sql.slice(0, markerIndex);
   const seedSql = sql.slice(markerIndex);
 
-  try {
-    assertNoDuplicateImages(seedSql);
-  } catch (err) {
-    console.error(`❌ ${err.message}`);
-    process.exitCode = 1;
-    return;
+  if (withSampleData) {
+    try {
+      assertNoDuplicateImages(seedSql);
+    } catch (err) {
+      console.error(`❌ ${err.message}`);
+      process.exitCode = 1;
+      return;
+    }
   }
 
   console.log(`Connecting to MySQL at ${process.env.DB_HOST || "127.0.0.1"}:${process.env.DB_PORT || 3306}...`);
@@ -155,10 +167,14 @@ async function migrate() {
       }
     }
 
-    console.log("3/3  Adding sample data (skips rows that already exist)...");
-    await connection.query(seedSql);
-
-    console.log("\n✅ Migration complete. Tables and sample data are ready.");
+    if (withSampleData) {
+      console.log("3/3  Adding sample data (skips rows that already exist)...");
+      await connection.query(seedSql);
+      console.log("\n✅ Migration complete. Tables and sample data are ready.");
+    } else {
+      console.log("3/3  Skipping sample data (run `npm run migrate:sample` if you want demo content).");
+      console.log("\n✅ Migration complete. Tables are ready and no sample data was added.");
+    }
   } catch (err) {
     console.error("\n❌ Migration failed:", err.message);
     process.exitCode = 1;

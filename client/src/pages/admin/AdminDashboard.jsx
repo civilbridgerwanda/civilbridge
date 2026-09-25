@@ -254,6 +254,20 @@ export default function AdminDashboard() {
   }
 
   async function handlePaymentStatusChange(paymentId, status) {
+    // Completing (or reversing) a purchase changes what the client can do
+    // immediately, so make the person confirm they've actually checked the
+    // money rather than trusting a stray click on the dropdown.
+    const target = payments.find((p) => p.id === paymentId);
+    const isPurchase = target && (target.purpose === "plan_upgrade" || target.purpose === "plan_license");
+    if (isPurchase && status === "completed" && target.status !== "completed") {
+      const ok = confirm(
+        `Mark as completed?\n\nOnly do this once you've confirmed ${target.currency} ${Number(target.amount).toLocaleString()} really arrived` +
+          ` (${(target.payment_method || "payment").replace(/_/g, " ")}).\n\nThe client's access unlocks immediately.`
+      );
+      if (!ok) return;
+    } else if (isPurchase && target.status === "completed" && status !== "completed") {
+      if (!confirm(`Change a completed payment to "${status}"?\n\nThis will take the client's access away again.`)) return;
+    }
     setUpdatingPaymentId(paymentId);
     try {
       const updated = await api.updatePaymentStatus(paymentId, status, token);
@@ -1043,7 +1057,8 @@ export default function AdminDashboard() {
                   <thead className="bg-slate-50 text-slate-500">
                     <tr>
                       <th className="px-4 py-3">Payer</th>
-                      <th className="px-4 py-3">Purpose</th>
+                      <th className="px-4 py-3">For</th>
+                      <th className="px-4 py-3">Method / Reference</th>
                       <th className="px-4 py-3">Amount</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Date</th>
@@ -1052,8 +1067,20 @@ export default function AdminDashboard() {
                   <tbody>
                     {payments.map((p) => (
                       <tr key={p.id} className="border-t border-slate-100">
-                        <td className="px-4 py-3 font-semibold text-ink-900">{p.payer?.full_name || "—"}</td>
-                        <td className="px-4 py-3 capitalize text-slate-500">{p.purpose.replace(/_/g, " ")}</td>
+                        <td className="px-4 py-3 font-semibold text-ink-900">
+                          {p.payer?.full_name || "—"}
+                          {p.payer?.email && <span className="block text-xs font-normal text-slate-400">{p.payer.email}</span>}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {p.notes || <span className="capitalize">{p.purpose.replace(/_/g, " ")}</span>}
+                          {(p.purpose === "plan_upgrade" || p.purpose === "plan_license") && (
+                            <span className="block text-xs text-indigo-500">Unlocks automatically when completed</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">
+                          <span className="capitalize">{p.payment_method ? p.payment_method.replace(/_/g, " ") : "—"}</span>
+                          {p.provider_reference && <span className="block text-xs text-slate-400">Ref: {p.provider_reference}</span>}
+                        </td>
                         <td className="px-4 py-3 text-slate-600">
                           {p.currency} {Number(p.amount).toLocaleString()}
                         </td>
