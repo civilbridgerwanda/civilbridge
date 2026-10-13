@@ -49,7 +49,8 @@ jobs:
 
       - name: No secrets or uploads committed
         run: |
-          bad=$(git ls-files | grep -E '(^|/)\.env$|^server/uploads/.+|\.pem$|id_rsa|id_ed25519' || true)
+          # (server/uploads/.gitkeep is the intentionally-empty placeholder, so it's allowed)
+          bad=$(git ls-files | grep -vE '\.gitkeep$' | grep -E '(^|/)\.env$|^server/uploads/.+|\.pem$|id_rsa|id_ed25519' || true)
           if [ -n "$bad" ]; then echo "::error::Files that must never be committed:"; echo "$bad"; exit 1; fi
 
       - name: Server - install and syntax-check every file
