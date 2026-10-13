@@ -941,6 +941,12 @@ version:
   verified experts and estimated projects (plus an overall rating once there are
   at least 5 reviews); open pages update via the `stats:updated` socket event.
 
+**Automatic deploys.** A GitHub Actions workflow (`.github/workflows/deploy.yml`)
+builds and checks every push to `main` and deploys it to the dev site; production
+is only ever deployed by hand from the Actions tab. The one-time setup (a
+locked-down SSH key, a sudo rule, GitHub secrets) is in
+[`docs/DEPLOY_AUTOMATION.md`](docs/DEPLOY_AUTOMATION.md).
+
 **Deploying this update:** `npm run migrate` (adds the new tables/columns and
 recomputes ratings), then raise Nginx's `client_max_body_size` to `55M` in the
 live config (the template in `deploy/` is already updated - the copy in
