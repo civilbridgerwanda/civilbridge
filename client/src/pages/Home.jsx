@@ -1,52 +1,65 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  CheckCircle2,
-  FileText,
-  Layers,
-  ArrowRight,
-  MapPin,
-  Users,
-  Calculator,
-  ShieldCheck,
-  TrendingUp,
-  Sparkles,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, MapPin, Users, FileText, Sparkles, Upload, Calculator, UserCheck } from "lucide-react";
 import { trackEvent } from "../lib/analytics";
 import { fadeUp, stagger } from "../lib/motion";
 import Seo from "../components/Seo";
-import AnimatedCounter from "../components/AnimatedCounter";
+import LiveCounters from "../components/LiveCounters";
 import FeaturedPropertiesCarousel from "../components/FeaturedPropertiesCarousel";
 
-const stats = [
-  { value: 500, suffix: "+", label: "Verified Professionals" },
-  { value: 1200, suffix: "+", label: "Projects Estimated" },
-  { value: 95, suffix: "%", label: "Cost Accuracy Rate" },
-  { value: null, display: "24/7", label: "Platform Access" },
-];
-
-
-const helpCards = [
+// The three steps of the Estimator, in the order they actually happen.
+// Wording is deliberately plain and honest: tools help prepare the numbers,
+// but a named professional is responsible for them.
+const steps = [
+  {
+    icon: Upload,
+    title: "Share your plan",
+    body: "Upload the plan you already have (PDF, AutoCAD, ArchiCAD or IFC) and tell us where in Rwanda you're building.",
+  },
   {
     icon: Calculator,
-    bg: "bg-brand-500",
-    title: "Accurate Cost Estimation",
-    body: "Get realistic construction cost estimates based on Rwanda-specific pricing, materials, and labor rates. Make financially safe decisions from day one.",
+    title: "We prepare your costs",
+    body: "We list the materials and quantities you'll need - the Bill of Quantities - and work out the cost using prices for your area.",
   },
   {
-    icon: ShieldCheck,
-    bg: "bg-brand-400",
-    title: "Expert Verification",
-    body: "Every plan and estimate can be reviewed by verified engineers and architects. AI accelerates, professionals validate.",
-  },
-  {
-    icon: TrendingUp,
-    bg: "bg-brand-700",
-    title: "Full Project Journey",
-    body: "From initial budget analysis to completed construction, track every phase with transparency and professional oversight.",
+    icon: UserCheck,
+    title: "A professional checks it",
+    body: "A qualified engineer or architect reviews the figures and signs them off before you see them. We'll tell you the moment it's ready.",
   },
 ];
+
+const explore = [
+  {
+    icon: MapPin,
+    title: "Marketplace",
+    body: "Houses, commercial properties and land plots. Filter by district and sector.",
+    to: "/marketplace",
+    cta: "Browse properties",
+  },
+  {
+    icon: Users,
+    title: "Experts",
+    body: "Verified engineers, architects and contractors, with reviews from real clients.",
+    to: "/experts",
+    cta: "Find an expert",
+  },
+  {
+    icon: FileText,
+    title: "Building plans",
+    body: "Ready-made designs. See the layout up front; the full drawing pack unlocks when you buy.",
+    to: "/plans",
+    cta: "View plans",
+  },
+  {
+    icon: Sparkles,
+    title: "AI Studio",
+    body: "Ask a question and get an instant answer - or hand bigger jobs to our estimating engine.",
+    to: "/ai-studio",
+    cta: "Open AI Studio",
+  },
+];
+
+const ease = [0.22, 0.61, 0.36, 1];
 
 export default function Home() {
   return (
@@ -115,89 +128,37 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How CivilBridge Helps You */}
-      <section className="mx-auto max-w-7xl px-6 py-20 text-center">
-        <motion.h2
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeUp}
-          className="text-4xl font-extrabold text-ink-900"
-        >
-          How CivilBridge Helps You
-        </motion.h2>
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeUp}
-          className="mx-auto mt-4 max-w-2xl text-slate-500"
-        >
-          We transform construction uncertainty into clear, actionable insights through
-          intelligent tools and expert validation.
-        </motion.p>
+      {/* Live, real numbers - verified experts and projects estimated. */}
+      <LiveCounters />
 
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={stagger}
-          className="mt-12 grid gap-6 text-left md:grid-cols-3"
-        >
-          {helpCards.map((c) => {
-            const Icon = c.icon;
-            return (
-              <motion.div
-                key={c.title}
-                variants={fadeUp}
-                whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
-                className="rounded-2xl border border-slate-100 bg-slate-50 p-8 transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg"
-              >
-                <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-xl ${c.bg} text-white`}>
-                  <Icon className="h-6 w-6" />
-                </div>
-                <h3 className="text-xl font-bold text-ink-900">{c.title}</h3>
-                <p className="mt-3 text-slate-600">{c.body}</p>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-      </section>
-
-      {/* Smart Cost Estimation */}
+      {/* How it works - the Estimator in three steps. */}
       <section className="bg-brand-50 py-20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 md:grid-cols-2 md:items-center">
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.3 }}
-            variants={stagger}
-          >
+        <div className="mx-auto grid max-w-7xl gap-12 px-6 md:grid-cols-2 md:items-center">
+          <motion.div initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} variants={stagger}>
             <motion.h2 variants={fadeUp} className="text-4xl font-extrabold text-ink-900">
               Smart Cost Estimation
             </motion.h2>
             <motion.p variants={fadeUp} className="mt-4 text-slate-600">
-              Our AI-powered estimator analyzes your project requirements and generates
-              detailed cost breakdowns including materials, labor, and timelines.
+              Share your building plan and get a clear cost breakdown - prepared with smart tools, and checked by a real
+              professional before it reaches you.
             </motion.p>
 
-            <ul className="mt-8 space-y-6">
-              {[
-                { icon: Sparkles, title: "Upload or Describe", body: "Upload existing plans or describe your vision conversationally." },
-                { icon: Zap, title: "AI Analysis", body: "Intelligent processing generates Bill of Quantities and cost estimates." },
-                { icon: CheckCircle2, title: "Professional Review", body: "Get expert validation and approval before execution." },
-              ].map((step) => (
+            <ol className="mt-8 space-y-6">
+              {steps.map((step, i) => (
                 <motion.li key={step.title} variants={fadeUp} className="flex gap-4">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-white">
-                    <step.icon className="h-4.5 w-4.5" />
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-white">
+                    <step.icon className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="font-semibold text-ink-900">{step.title}</p>
+                    <p className="font-semibold text-ink-900">
+                      <span className="mr-1 text-brand-400">{i + 1}.</span>
+                      {step.title}
+                    </p>
                     <p className="text-slate-600">{step.body}</p>
                   </div>
                 </motion.li>
               ))}
-            </ul>
+            </ol>
 
             <motion.div variants={fadeUp}>
               <Link
@@ -207,6 +168,9 @@ export default function Home() {
               >
                 Try the Estimator →
               </Link>
+              <p className="mt-4 text-sm text-slate-500">
+                Smart tools do the heavy lifting. A real person is always responsible for the final numbers.
+              </p>
             </motion.div>
           </motion.div>
 
@@ -224,259 +188,50 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Discover Properties & Connect with Experts */}
-      <section className="mx-auto max-w-7xl px-6 py-20 text-center">
-        <motion.h2
+      {/* Everything else, in one place. */}
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <motion.div
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeUp}
-          className="text-4xl font-extrabold text-ink-900"
+          className="text-center"
         >
-          Discover Properties &amp; Connect with Experts
-        </motion.h2>
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeUp}
-          className="mx-auto mt-4 max-w-2xl text-slate-500"
-        >
-          Browse verified properties, land plots, and connect with trusted engineers,
-          architects, and contractors.
-        </motion.p>
+          <h2 className="text-4xl font-extrabold text-ink-900">Everything for your build</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-slate-500">
+            Find land, hire verified professionals, and start from a proven design.
+          </p>
+        </motion.div>
 
         <motion.div
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
           variants={stagger}
-          className="mt-12 grid gap-6 text-left md:grid-cols-2"
+          className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
         >
-          <motion.div
-            variants={fadeUp}
-            whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
-            className="group rounded-2xl bg-brand-gradient p-10 text-white transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-xl"
-          >
-            <MapPin className="h-8 w-8" />
-            <h3 className="mt-4 text-2xl font-bold">Property Marketplace</h3>
-            <p className="mt-3 text-brand-50">
-              Explore houses, commercial properties, and land plots across Rwanda. Filter by
-              location, price, and type.
-            </p>
-            <Link
-              to="/marketplace"
-              className="mt-6 inline-flex items-center gap-1 font-semibold transition-transform duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:underline group-hover:translate-x-1"
-            >
-              Browse Properties →
-            </Link>
-          </motion.div>
-
-          <motion.div
-            variants={fadeUp}
-            whileHover={{ y: -4, transition: { duration: 0.3, ease: [0.22, 0.61, 0.36, 1] } }}
-            className="group rounded-2xl bg-brand-gradient p-10 text-white transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-xl"
-          >
-            <Users className="h-8 w-8" />
-            <h3 className="mt-4 text-2xl font-bold">Expert Directory</h3>
-            <p className="mt-3 text-brand-100">
-              Find and connect with verified construction professionals. Read reviews and
-              book consultations.
-            </p>
-            <Link
-              to="/experts"
-              className="mt-6 inline-flex items-center gap-1 font-semibold transition-transform duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:underline group-hover:translate-x-1"
-            >
-              Find Experts →
-            </Link>
-          </motion.div>
+          {explore.map((item) => (
+            <motion.div key={item.title} variants={fadeUp} whileHover={{ y: -4, transition: { duration: 0.3, ease } }}>
+              <Link
+                to={item.to}
+                className="group flex h-full flex-col rounded-2xl border border-slate-100 bg-slate-50 p-7 transition-shadow duration-300 ease-[cubic-bezier(.22,.61,.36,1)] hover:shadow-lg"
+              >
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500 text-white">
+                  <item.icon className="h-6 w-6" />
+                </span>
+                <h3 className="mt-5 text-xl font-bold text-ink-900">{item.title}</h3>
+                <p className="mt-2 flex-1 text-sm text-slate-600">{item.body}</p>
+                <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-brand-500 transition-transform duration-200 group-hover:translate-x-1">
+                  {item.cta} <ArrowRight className="h-4 w-4" />
+                </span>
+              </Link>
+            </motion.div>
+          ))}
         </motion.div>
       </section>
 
-      {/* Ready-Made & Custom Plans */}
-      <section className="bg-gradient-to-b from-brand-50 to-white py-20">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-start gap-10 px-6 md:grid-cols-2">
-          <motion.img
-            initial={{ opacity: 0, x: -40 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.6 }}
-            src="/images/home/architectural-blueprint.jpg"
-            alt="Architectural blueprint for a building plan"
-            loading="lazy"
-            decoding="async"
-            className="rounded-2xl shadow-lg"
-          />
-
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.3 }}
-            variants={stagger}
-          >
-            <motion.h2 variants={fadeUp} className="text-4xl font-extrabold text-ink-900">
-              Ready-Made &amp; Custom Plans
-            </motion.h2>
-            <motion.p variants={fadeUp} className="mt-4 text-slate-600">
-              Browse our library of professionally designed building plans or generate
-              custom designs using AI based on your budget, land, and preferences.
-            </motion.p>
-
-            <ul className="mt-8 space-y-4">
-              {[
-                "Pre-designed plans for common building types",
-                "AI-generated custom designs based on your requirements",
-                "Professional review and approval workflow",
-              ].map((item) => (
-                <motion.li key={item} variants={fadeUp} className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-500" />
-                  <span className="text-slate-700">{item}</span>
-                </motion.li>
-              ))}
-            </ul>
-
-            <motion.div variants={fadeUp}>
-              <Link
-                to="/plans"
-                onClick={() => trackEvent("cta_click", { cta: "view_plans" })}
-                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
-              >
-                View Plans <ArrowRight className="h-4 w-4" />
-              </Link>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* AI-Powered Construction Intelligence */}
-      <section className="py-20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 md:grid-cols-2 md:items-center">
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.3 }}
-            variants={stagger}
-          >
-            <motion.h2 variants={fadeUp} className="text-4xl font-extrabold leading-tight text-ink-900">
-              AI-Powered Construction Intelligence
-            </motion.h2>
-            <motion.p variants={fadeUp} className="mt-4 text-slate-600">
-              Our AI Studio helps you make smarter decisions with conversational planning,
-              feasibility analysis, and intelligent recommendations tailored to the
-              Rwandan market.
-            </motion.p>
-
-            <motion.div variants={fadeUp} className="mt-8 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6">
-                <FileText className="h-6 w-6 text-brand-500" />
-                <p className="mt-3 font-bold text-ink-900">Document Generation</p>
-                <p className="mt-1 text-sm text-slate-500">Auto-generate project packages</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6">
-                <Layers className="h-6 w-6 text-brand-500" />
-                <p className="mt-3 font-bold text-ink-900">Feasibility Analysis</p>
-                <p className="mt-1 text-sm text-slate-500">Budget vs. requirements check</p>
-              </div>
-            </motion.div>
-
-            <motion.div variants={fadeUp}>
-              <Link
-                to="/ai-studio"
-                onClick={() => trackEvent("cta_click", { cta: "open_ai_studio" })}
-                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 font-semibold text-white transition-[background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-md active:translate-y-0"
-              >
-                Open AI Studio <ArrowRight className="h-4 w-4" />
-              </Link>
-            </motion.div>
-          </motion.div>
-
-          <motion.img
-            initial={{ opacity: 0, x: 40 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.6 }}
-            src="/images/home/construction-tablet-tech.jpg"
-            alt="Construction workers reviewing plans on a tablet"
-            loading="lazy"
-            decoding="async"
-            className="rounded-2xl shadow-lg"
-          />
-        </div>
-      </section>
-
-      {/* Built on Trust & Quality */}
-      <section className="bg-brand-gradient py-20 text-white">
-        <div className="mx-auto max-w-7xl px-6 text-center">
-          <motion.h2
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.4 }}
-            variants={fadeUp}
-            className="text-4xl font-extrabold"
-          >
-            Built on Trust &amp; Quality
-          </motion.h2>
-          <motion.p
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.4 }}
-            variants={fadeUp}
-            className="mx-auto mt-4 max-w-2xl text-brand-100"
-          >
-            CivilBridge is designed specifically for Rwanda with local expertise, verified
-            professionals, and realistic cost intelligence.
-          </motion.p>
-
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.3 }}
-            variants={stagger}
-            className="mt-14 grid grid-cols-2 gap-8 md:grid-cols-4"
-          >
-            {stats.map((s) => (
-              <motion.div key={s.label} variants={fadeUp}>
-                <p className="text-4xl font-extrabold text-gold-400">
-                  {s.display ?? <AnimatedCounter to={s.value} suffix={s.suffix} />}
-                </p>
-                <p className="mt-2 text-sm text-brand-100">{s.label}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Featured Properties & Developments */}
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-6 text-center">
-          <motion.h2
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.4 }}
-            variants={fadeUp}
-            className="text-4xl font-extrabold text-ink-900"
-          >
-            Featured Properties &amp; Developments
-          </motion.h2>
-          <motion.p
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.4 }}
-            variants={fadeUp}
-            className="mx-auto mt-4 max-w-2xl text-slate-500"
-          >
-            Explore a selection of quality properties across Rwanda.
-          </motion.p>
-        </div>
-
-        <FeaturedPropertiesCarousel />
-
-        <div className="mt-4 text-center">
-          <Link to="/marketplace" className="inline-flex items-center gap-2 font-semibold text-brand-500 hover:underline">
-            Browse all properties <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
+      {/* Real listings only - hides itself until there are some. */}
+      <FeaturedPropertiesCarousel />
 
       {/* Final CTA */}
       <section className="bg-brand-gradient py-20 text-center text-white">
@@ -497,8 +252,7 @@ export default function Home() {
             variants={fadeUp}
             className="mx-auto mt-4 max-w-xl text-brand-50"
           >
-            Join thousands of Rwandans building smarter with CivilBridge. Get your free
-            cost estimate today.
+            Upload your plan and get an expert-verified cost estimate.
           </motion.p>
 
           <motion.div

@@ -22,6 +22,10 @@ export const Payment = sequelize.define(
     // (professional | business). reference_id is a UUID column so it can't
     // hold a tier name.
     target_plan: { type: DataTypes.STRING(30) },
+    // Which choice the buyer made when the purchase had options: "estimate" |
+    // "estimate_drawings" (pay-as-you-go), "plan_only" | "plan_estimate" (a plan
+    // licence with or without a bundled cost estimate). Set server-side.
+    payment_option: { type: DataTypes.STRING(30) },
     // Human-readable description of exactly what was bought, set
     // server-side, so the reconciler never has to guess from ids.
     notes: { type: DataTypes.STRING(500) },

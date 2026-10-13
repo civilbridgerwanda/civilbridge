@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Upload, File as FileIcon, X, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
-import { RWANDA_LOCATIONS } from "../lib/locations";
+import LocationSelect from "../components/LocationSelect";
 import { trackEvent } from "../lib/analytics";
 import Seo from "../components/Seo";
 
@@ -25,7 +25,8 @@ export default function JoinAsExpert() {
     specialization: "",
     bio: "",
     years_experience: "",
-    city: "",
+    district: "",
+    sector: "",
   });
   const [file, setFile] = useState(null);
   const [error, setError] = useState(null);
@@ -129,7 +130,7 @@ export default function JoinAsExpert() {
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <div>
+          <div className="sm:col-span-2 sm:max-w-[calc(50%-0.625rem)]">
             <label className="block text-sm font-semibold text-ink-900">Years of Experience</label>
             <input
               type="number"
@@ -139,21 +140,14 @@ export default function JoinAsExpert() {
               onChange={(e) => update("years_experience", e.target.value)}
             />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-ink-900">City</label>
-            <select
+          <div className="sm:col-span-2">
+            <LocationSelect
               required
-              className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              value={form.city}
-              onChange={(e) => update("city", e.target.value)}
-            >
-              <option value="">Select...</option>
-              {RWANDA_LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
+              district={form.district}
+              sector={form.sector}
+              onChange={(loc) => setForm((f) => ({ ...f, ...loc }))}
+            />
+            <p className="mt-1.5 text-xs text-slate-400">Where you mainly work - clients can filter experts by district and sector.</p>
           </div>
         </div>
 

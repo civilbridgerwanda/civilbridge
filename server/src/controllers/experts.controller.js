@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import { createHash } from "crypto";
-import { Expert, User, ExpertReview, ExpertPortfolio, PlanInquiry, Plan } from "../models/index.js";
+import { Expert, User, ExpertPortfolio, PlanInquiry, Plan } from "../models/index.js";
+import { LocationError, resolveLocation } from "../lib/locations.js";
 
 // Gravatar's URL scheme is just an MD5 hash of the lowercased, trimmed
 // email - `d=404` makes it return a real 404 instead of a default
@@ -13,10 +14,14 @@ function gravatarUrl(email) {
   return `https://www.gravatar.com/avatar/${hash}?d=404&s=200`;
 }
 
+// Verified experts always come first; among equals, real ratings decide. An
+// unreviewed expert has no rating at all, so it never outranks a reviewed one.
 const orderMap = {
   rating: [
+    ["is_verified", "DESC"],
     ["rating", "DESC"],
     ["review_count", "DESC"],
+    ["created_at", "DESC"],
   ],
   reviews: [["review_count", "DESC"]],
   experience: [["years_experience", "DESC"]],
@@ -38,6 +43,8 @@ function serialize(e) {
     avatar_url: e.avatar_url,
     gravatar_url: gravatarUrl(e.User?.email),
     city: e.city,
+    district: e.district,
+    sector: e.sector,
     view_count: e.view_count,
     full_name: e.User?.full_name,
     email: e.User?.email,
@@ -46,18 +53,21 @@ function serialize(e) {
   };
 }
 
-// GET /api/experts?category=engineer&city=Kigali&search=marie&sort=rating
+// GET /api/experts?category=engineer&district=Gasabo&sector=Remera&search=marie&sort=rating
 export async function list(req, res) {
   try {
-    const { category, city, search, sort, min_rating, verified_only, min_experience } = req.query;
+    const { category, district, sector, search, sort, min_rating, verified_only, min_experience } = req.query;
     const where = {};
 
     if (category && category !== "all") where.category = category;
-    if (city && city !== "all") where.city = city;
+    if (district && district !== "all") where.district = district;
+    if (sector && sector !== "all") where.sector = sector;
     if (search) {
       where[Op.or] = [
         { specialty: { [Op.like]: `%${search}%` } },
         { specialization: { [Op.like]: `%${search}%` } },
+        { district: { [Op.like]: `%${search}%` } },
+        { sector: { [Op.like]: `%${search}%` } },
         { "$User.full_name$": { [Op.like]: `%${search}%` } },
       ];
     }
@@ -136,14 +146,16 @@ export async function getById(req, res) {
 // POST /api/experts  (create/update the signed-in user's own expert profile)
 export async function upsert(req, res) {
   try {
-    const { category, specialty, specialization, bio, years_experience, city, avatar_url } = req.body;
+    const { category, specialty, specialization, bio, years_experience, district, sector, avatar_url } = req.body;
     if (!category || !specialty) {
       return res.status(400).json({ success: false, message: "Category and specialty are required" });
     }
+    // Where they work - a real district and one of its sectors, no exact address.
+    const location = resolveLocation(district, sector, { required: true, sectorRequired: true });
 
     const [expert] = await Expert.findOrCreate({
       where: { user_id: req.user.sub },
-      defaults: { category, specialty, specialization, bio, years_experience, city, avatar_url },
+      defaults: { category, specialty, specialization, bio, years_experience, ...location, avatar_url },
     });
 
     // If a profile already existed, update it with the latest submission.
@@ -152,7 +164,8 @@ export async function upsert(req, res) {
     expert.specialization = specialization;
     expert.bio = bio;
     expert.years_experience = years_experience || 0;
-    expert.city = city;
+    expert.district = location.district;
+    expert.sector = location.sector;
     if (avatar_url) expert.avatar_url = avatar_url;
     await expert.save();
 
@@ -170,71 +183,11 @@ export async function upsert(req, res) {
     });
     res.status(201).json({ success: true, data: serialize(withUser) });
   } catch (err) {
+    if (err instanceof LocationError) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to save expert profile" });
-  }
-}
-
-// ---------- Reviews ----------
-
-async function recomputeRating(expertId) {
-  const reviews = await ExpertReview.findAll({ where: { expert_id: expertId }, attributes: ["rating"] });
-  const review_count = reviews.length;
-  const rating = review_count ? reviews.reduce((sum, r) => sum + r.rating, 0) / review_count : 0;
-  await Expert.update({ rating: Math.round(rating * 10) / 10, review_count }, { where: { id: expertId } });
-}
-
-// GET /api/experts/:id/reviews
-export async function listReviews(req, res) {
-  try {
-    const reviews = await ExpertReview.findAll({
-      where: { expert_id: req.params.id },
-      include: [{ model: User, as: "reviewer", attributes: ["full_name"] }],
-      order: [["created_at", "DESC"]],
-    });
-    res.json({ success: true, data: reviews });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Failed to fetch reviews" });
-  }
-}
-
-// POST /api/experts/:id/reviews  { rating, comment }
-// One review per (expert, reviewer) - submitting again updates it.
-export async function upsertReview(req, res) {
-  try {
-    const { rating, comment } = req.body;
-    const ratingNum = Number(rating);
-    if (!ratingNum || ratingNum < 1 || ratingNum > 5) {
-      return res.status(400).json({ success: false, message: "Rating must be between 1 and 5" });
-    }
-
-    const expert = await Expert.findByPk(req.params.id);
-    if (!expert) {
-      return res.status(404).json({ success: false, message: "Expert not found" });
-    }
-    if (expert.user_id === req.user.sub) {
-      return res.status(400).json({ success: false, message: "You can't review your own profile" });
-    }
-
-    const [review] = await ExpertReview.findOrCreate({
-      where: { expert_id: expert.id, reviewer_id: req.user.sub },
-      defaults: { rating: ratingNum, comment },
-    });
-    review.rating = ratingNum;
-    review.comment = comment;
-    review.updated_at = new Date();
-    await review.save();
-
-    await recomputeRating(expert.id);
-
-    const withReviewer = await ExpertReview.findByPk(review.id, {
-      include: [{ model: User, as: "reviewer", attributes: ["full_name"] }],
-    });
-    res.status(201).json({ success: true, data: withReviewer });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Failed to submit review" });
   }
 }
 

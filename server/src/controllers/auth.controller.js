@@ -4,7 +4,7 @@ import { signToken } from "../middleware/auth.js";
 import { sendMail } from "../config/mailer.js";
 import { welcomeEmail, otpEmail, passwordResetEmail } from "../config/emailTemplates.js";
 import { createOtp, canResend, verifyOtp } from "../lib/otp.js";
-import { peekCredits } from "../middleware/credits.js";
+import { getAllowance } from "../lib/allowance.js";
 import { subscribeEmail } from "../lib/newsletterService.js";
 
 // Accounts created via a provider that doesn't supply a real email (X,
@@ -102,8 +102,7 @@ export async function me(req, res) {
   try {
     const user = await User.findByPk(req.user.sub);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    const credits = await peekCredits(user);
-    res.json({ success: true, data: { ...publicUser(user), credits } });
+    res.json({ success: true, data: { ...publicUser(user), allowance: await getAllowance(user) } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to fetch account" });

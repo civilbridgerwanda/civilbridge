@@ -8,6 +8,16 @@ export function signToken(user) {
   });
 }
 
+// Same check as attachUser, for callers that aren't an HTTP request (the
+// socket handshake). Returns the token's payload, or null if it's invalid.
+export function verifyToken(token) {
+  try {
+    return typeof token === "string" ? jwt.verify(token, JWT_SECRET) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Attaches req.user if a valid Bearer token is present; does not reject
 // the request if one is missing (use requireAuth for that).
 export function attachUser(req, _res, next) {

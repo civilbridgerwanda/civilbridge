@@ -55,7 +55,24 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    client_max_body_size 10M;
+    # Files people upload (property photos, plan previews, estimator plans) are
+    # stored on the API server and served by it at /uploads. Without this
+    # block they'd fall through to the React app above and come back as the
+    # home page instead of the image. The ^~ matters: without it the .jpg/.png
+    # rule at the bottom of this file wins and looks for the image in the
+    # website folder instead of asking the API.
+    location ^~ /uploads/ {
+        proxy_pass http://127.0.0.1:5001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+
+    # Must sit a little above the app's 50 MB upload limit (Estimator plan
+    # files, plan videos) - see nginx-prod.conf.example.
+    client_max_body_size 55M;
 
     location ~* \.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?)$ {
         expires 30d;

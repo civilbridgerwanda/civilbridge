@@ -16,6 +16,8 @@ import { PlanInquiry } from "./PlanInquiry.js";
 import { ExpertReview, ExpertPortfolio } from "./ExpertReview.js";
 import { PropertyReview } from "./PropertyReview.js";
 import { PlanReview } from "./PlanReview.js";
+import { AgentJob, AgentDeliverable } from "./AgentJob.js";
+import { PropertyVisit } from "./PropertyVisit.js";
 
 // Cross-model associations that aren't self-contained in one model file.
 User.hasOne(Expert, { foreignKey: "user_id" });
@@ -69,6 +71,18 @@ PropertyReview.belongsTo(Property, { foreignKey: "property_id" });
 User.hasMany(PropertyReview, { foreignKey: "reviewer_id" });
 PropertyReview.belongsTo(User, { foreignKey: "reviewer_id", as: "reviewer" });
 
+Property.hasMany(PropertyVisit, { foreignKey: "property_id", as: "visits" });
+PropertyVisit.belongsTo(Property, { foreignKey: "property_id" });
+User.hasMany(PropertyVisit, { foreignKey: "user_id" });
+PropertyVisit.belongsTo(User, { foreignKey: "user_id", as: "visitor" });
+
+User.hasMany(AgentJob, { foreignKey: "user_id" });
+AgentJob.belongsTo(User, { foreignKey: "user_id" });
+Estimate.hasMany(AgentJob, { foreignKey: "estimate_id", as: "jobs" });
+AgentJob.belongsTo(Estimate, { foreignKey: "estimate_id" });
+Estimate.hasMany(AgentDeliverable, { foreignKey: "estimate_id", as: "deliverables" });
+AgentDeliverable.belongsTo(Estimate, { foreignKey: "estimate_id" });
+
 Plan.hasMany(PlanReview, { foreignKey: "plan_id", as: "reviews" });
 PlanReview.belongsTo(Plan, { foreignKey: "plan_id" });
 User.hasMany(PlanReview, { foreignKey: "reviewer_id" });
@@ -97,4 +111,7 @@ export {
   ExpertPortfolio,
   PropertyReview,
   PlanReview,
+  AgentJob,
+  AgentDeliverable,
+  PropertyVisit,
 };

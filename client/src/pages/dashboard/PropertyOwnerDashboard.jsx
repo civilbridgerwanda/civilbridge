@@ -5,6 +5,7 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { getRoleTheme } from "../../lib/roleTheme";
 import Seo from "../../components/Seo";
+import { formatLocation } from "../../lib/locations";
 
 const theme = getRoleTheme("property_owner");
 
@@ -140,7 +141,7 @@ export default function PropertyOwnerDashboard() {
                       <Link to={`/marketplace/${p.id}`} className="min-w-0 flex-1">
                         <p className="truncate font-bold text-ink-900">{p.title}</p>
                         <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                          <MapPin className="h-3.5 w-3.5" /> {p.city}
+                          <MapPin className="h-3.5 w-3.5" /> {formatLocation(p) || "Location not set"}
                         </p>
                       </Link>
                       <button

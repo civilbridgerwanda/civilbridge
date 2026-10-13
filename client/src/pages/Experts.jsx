@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, Star, Briefcase, BadgeCheck, ArrowRight, SlidersHorizontal } from "lucide-react";
+import { Search, Briefcase, BadgeCheck, ArrowRight, SlidersHorizontal, MapPin } from "lucide-react";
 import { api } from "../lib/api";
 import Seo from "../components/Seo";
 import { SkeletonGrid, ExpertCardSkeleton } from "../components/Skeleton";
 import { fadeUp, stagger } from "../lib/motion";
-import { RWANDA_LOCATIONS } from "../lib/locations";
+import { formatLocation } from "../lib/locations";
+import LocationSelect from "../components/LocationSelect";
+import RatingBadge from "../components/RatingBadge";
 import { useAuth } from "../lib/AuthContext";
 import Avatar from "../components/Avatar";
 
@@ -42,11 +44,6 @@ const experienceOptions = [
 
 const PAGE_SIZE = 6;
 
-function formatRating(rating) {
-  const n = Number(rating);
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
-}
-
 export default function Experts() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -57,7 +54,8 @@ export default function Experts() {
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
   const [activeCategory, setActiveCategory] = useState("all");
-  const [city, setCity] = useState("all");
+  const [district, setDistrict] = useState("");
+  const [sector, setSector] = useState("");
   const [minRating, setMinRating] = useState("");
   const [minExperience, setMinExperience] = useState("");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
@@ -76,7 +74,8 @@ export default function Experts() {
     api
       .getExperts({
         category: activeCategory,
-        city,
+        district,
+        sector,
         search: debouncedSearch || undefined,
         sort,
         min_rating: minRating || undefined,
@@ -89,7 +88,7 @@ export default function Experts() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [activeCategory, city, debouncedSearch, sort, minRating, minExperience, verifiedOnly]);
+  }, [activeCategory, district, sector, debouncedSearch, sort, minRating, minExperience, verifiedOnly]);
 
   const visibleExperts = useMemo(() => experts.slice(0, visibleCount), [experts, visibleCount]);
   const activeExtraFilters = minRating || minExperience || verifiedOnly;
@@ -158,18 +157,17 @@ export default function Experts() {
 
         {/* Filter dropdowns */}
         <div className="mt-4 flex flex-wrap gap-3">
-          <select
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-ink-900 focus:border-brand-400 focus:outline-none"
-          >
-            <option value="all">Location</option>
-            {RWANDA_LOCATIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <LocationSelect
+            mode="filter"
+            labels={false}
+            className="w-full sm:w-[24rem]"
+            district={district}
+            sector={sector}
+            onChange={(loc) => {
+              setDistrict(loc.district);
+              setSector(loc.sector);
+            }}
+          />
 
           <button
             type="button"
@@ -310,27 +308,24 @@ export default function Experts() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2">
-                  <div className="flex text-gold-400">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className="h-4 w-4"
-                        fill={i < Math.round(Number(e.rating)) ? "currentColor" : "none"}
-                        strokeWidth={1.5}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm font-semibold text-ink-900">{formatRating(e.rating)}</span>
-                  <span className="text-sm text-tertiary">({e.review_count} reviews)</span>
+                <div className="mt-4">
+                  <RatingBadge rating={e.rating} reviewCount={e.review_count} emptyLabel="No reviews yet" />
                 </div>
 
                 {e.specialization && <p className="mt-3 text-sm text-slate-600">{e.specialization}</p>}
 
-                <p className="mt-3 flex items-center gap-2 text-sm text-slate-500">
-                  <Briefcase className="h-4 w-4" />
-                  {e.completed_projects} completed projects
-                </p>
+                {formatLocation(e) && (
+                  <p className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+                    <MapPin className="h-4 w-4" />
+                    {formatLocation(e)}
+                  </p>
+                )}
+                {e.completed_projects > 0 && (
+                  <p className="mt-2 flex items-center gap-2 text-sm text-slate-500">
+                    <Briefcase className="h-4 w-4" />
+                    {e.completed_projects} verified project{e.completed_projects === 1 ? "" : "s"}
+                  </p>
+                )}
 
                 <Link
                   to={`/experts/${e.id}`}

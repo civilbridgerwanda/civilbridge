@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Loader2, Mail, Phone, Calendar, Building2, Calculator, MessageSquare, Wallet, BadgeCheck, Star } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, Building2, Calculator, MessageSquare, Wallet, BadgeCheck } from "lucide-react";
 import Modal from "../Modal";
+import RatingBadge from "../RatingBadge";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 
@@ -107,9 +108,8 @@ export default function UserDetailModal({ userId, onClose }) {
                 {detail.expertProfile.is_verified && <BadgeCheck className="h-4 w-4 text-brand-500" />}
               </p>
               <p className="mt-1 text-sm text-slate-500">{detail.expertProfile.specialty}</p>
-              <div className="mt-2 flex items-center gap-1 text-sm text-slate-600">
-                <Star className="h-3.5 w-3.5 text-gold-400" fill="currentColor" />
-                {detail.expertProfile.rating} ({detail.expertProfile.review_count} reviews)
+              <div className="mt-2 text-sm text-slate-600">
+                <RatingBadge variant="compact" rating={detail.expertProfile.rating} reviewCount={detail.expertProfile.review_count} emptyLabel="No reviews yet" />
               </div>
             </div>
           )}

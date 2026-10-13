@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   Loader2,
-  Star,
   BadgeCheck,
   Clock,
   Pencil,
@@ -33,22 +32,21 @@ import { getRoleTheme } from "../../lib/roleTheme";
 import Seo from "../../components/Seo";
 import ContactSupportButton from "../../components/ContactSupportButton";
 import { PlanBadge, UpgradeSuggestion } from "../../components/PlanBadge";
+import EstimateResultsModal from "../../components/EstimateResultsModal";
+import RatingBadge from "../../components/RatingBadge";
 
 const theme = getRoleTheme("expert");
 
-function formatRating(rating) {
-  const n = Number(rating);
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
-}
-
 const STATUS_COLORS = {
+  draft: "#94a3b8", // slate-400 - received, no analysis yet
   ai_generated: "#8ea5c9", // brand-300-ish
   under_review: "#eba82c", // gold-500
   verified: "#0d9488", // teal-600 - this expert's own accent, not a shared status color
 };
 
 const STATUS_LABELS = {
-  ai_generated: "New",
+  draft: "Needs analysis",
+  ai_generated: "Analysed",
   under_review: "In Review",
   verified: "Verified",
 };
@@ -77,6 +75,7 @@ export default function ExpertDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [resultsFor, setResultsFor] = useState(null); // estimate id whose results are being entered
 
   const [showPortfolioForm, setShowPortfolioForm] = useState(false);
   const [portfolioForm, setPortfolioForm] = useState({ title: "", description: "", image_url: "" });
@@ -161,7 +160,7 @@ export default function ExpertDashboard() {
   }, [queue, expertId]);
 
   const statusBreakdown = useMemo(() => {
-    const counts = { ai_generated: 0, under_review: 0, verified: 0 };
+    const counts = { draft: 0, ai_generated: 0, under_review: 0, verified: 0 };
     queue.forEach((e) => {
       if (counts[e.status] !== undefined) counts[e.status] += 1;
     });
@@ -205,7 +204,7 @@ export default function ExpertDashboard() {
         <h1 className="text-3xl font-extrabold text-ink-900">Expert Dashboard</h1>
         <PlanBadge plan={user?.plan} />
       </div>
-      <p className="mt-1 text-slate-500">Your profile, stats, and estimates waiting for review.</p>
+      <p className="mt-1 text-slate-500">Your profile, stats, and the work our team has assigned to you.</p>
 
       <div className="mt-4">
         <UpgradeSuggestion plan={user?.plan} className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-500 to-brand-700 px-4 py-2.5 text-sm font-semibold text-white transition-opacity duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:opacity-90" />
@@ -269,10 +268,13 @@ export default function ExpertDashboard() {
                 </p>
               )}
 
-              <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
-                <Star className="h-4 w-4 text-gold-400" fill="currentColor" />
-                {formatRating(profile.rating)} ({profile.review_count} reviews) ·{" "}
-                {profile.completed_projects} completed projects
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                <RatingBadge rating={profile.rating} reviewCount={profile.review_count} emptyLabel="No reviews yet" />
+                {profile.completed_projects > 0 && (
+                  <span>
+                    {profile.completed_projects} verified project{profile.completed_projects === 1 ? "" : "s"}
+                  </span>
+                )}
               </div>
 
               {/* Recent Work / Portfolio */}
@@ -478,7 +480,7 @@ export default function ExpertDashboard() {
               <Clock className={`h-5 w-5 ${theme.text}`} /> Review Queue
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Estimates awaiting expert review, plus ones you've already reviewed.
+              Work our team has assigned to you, plus estimates you've already verified.
             </p>
 
             {queue.length ? (
@@ -501,10 +503,24 @@ export default function ExpertDashboard() {
                           </Link>
                         </td>
                         <td className="px-4 py-3 text-slate-500">{e.User?.full_name || "Guest"}</td>
-                        <td className="px-4 py-3 capitalize text-slate-500">{e.status.replace("_", " ")}</td>
+                        <td className="px-4 py-3 text-slate-500">
+                          {STATUS_LABELS[e.status] || e.status}
+                          {e.status === "draft" && e.job?.status === "running" && (
+                            <span className="ml-1 text-xs text-slate-400">(engine working)</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            {e.status !== "under_review" && (
+                          <div className="flex flex-wrap gap-2">
+                            {e.status !== "verified" && (
+                              <button
+                                type="button"
+                                onClick={() => setResultsFor(e.id)}
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-slate-50"
+                              >
+                                {e.status === "draft" ? "Enter results" : "Edit results"}
+                              </button>
+                            )}
+                            {e.status !== "under_review" && e.status !== "draft" && (
                               <button
                                 type="button"
                                 disabled={updatingId === e.id}
@@ -532,7 +548,18 @@ export default function ExpertDashboard() {
                 </table>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-slate-500">Nothing in the queue right now.</p>
+              <p className="mt-4 text-sm text-slate-500">Nothing assigned to you right now - you'll be notified when the team sends you work.</p>
+            )}
+            {resultsFor && (
+              <EstimateResultsModal
+                estimateId={resultsFor}
+                onClose={() => setResultsFor(null)}
+                onSaved={(saved) =>
+                  setQueue((prev) =>
+                    prev.map((e) => (e.id === saved.id ? { ...e, status: saved.status, estimated_cost: saved.estimated_cost } : e))
+                  )
+                }
+              />
             )}
           </section>
         </div>

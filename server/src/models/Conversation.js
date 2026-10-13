@@ -7,6 +7,10 @@ export const Conversation = sequelize.define(
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     user_a_id: { type: DataTypes.UUID, allowNull: false },
     user_b_id: { type: DataTypes.UUID, allowNull: false },
+    // Who opened it. Only conversations a person STARTS count toward their
+    // plan's monthly expert-conversation allowance - an expert reaching out
+    // to them never does.
+    started_by: { type: DataTypes.UUID },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },

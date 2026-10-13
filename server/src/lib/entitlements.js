@@ -1,5 +1,6 @@
 import { Payment, User, Plan } from "../models/index.js";
 import { notify } from "./notify.js";
+import { ESTIMATE_PURCHASE_OPTIONS } from "../config/pricing.js";
 
 // What a client is allowed to do is derived from two things, both of which
 // change automatically when a payment is completed - nobody has to flip a
@@ -49,6 +50,20 @@ export async function hasPlanAccess(userId, planId) {
   return hasPlanLicense(userId, planId);
 }
 
+// Pay-as-you-go purchases don't change the account level; they add credits
+// that are spent when an estimate is submitted (lib/allowance.js). Returns how
+// many of each a payment is worth, or null if it isn't a credit purchase.
+function creditsFor(payment) {
+  if (payment.purpose === "estimate_purchase") {
+    const option = ESTIMATE_PURCHASE_OPTIONS[payment.payment_option];
+    return option ? { estimate: option.estimate, drawings: option.drawings } : null;
+  }
+  if (payment.purpose === "drawings_addon") return { estimate: 0, drawings: 1 };
+  // A plan bought together with a cost estimate includes one estimate credit.
+  if (payment.purpose === "plan_license" && payment.payment_option === "plan_estimate") return { estimate: 1, drawings: 0 };
+  return null;
+}
+
 // Called by the payments controller right after a payment's status
 // changes. `previousStatus` makes it idempotent: flipping "completed" ->
 // "completed" (double click, retried webhook later) grants nothing twice,
@@ -83,6 +98,28 @@ export async function applyPaymentTransition(payment, previousStatus, io) {
         title: "Your plan was changed",
         body: "Your payment was reversed, so your account is back on the Starter plan.",
         link: "/settings",
+      }).catch(() => {});
+    }
+  }
+
+  const grant = creditsFor(payment);
+  if (grant) {
+    const user = await User.findByPk(payment.payer_id);
+    if (user) {
+      // A reversal takes the credits back - but never below zero: credits
+      // already spent on a submitted estimate can't be clawed back.
+      const sign = isCompleted ? 1 : -1;
+      user.estimate_credits = Math.max(0, user.estimate_credits + sign * grant.estimate);
+      user.drawing_credits = Math.max(0, user.drawing_credits + sign * grant.drawings);
+      await user.save();
+      const what = [grant.estimate && "a cost estimate", grant.drawings && "a CAD drawing set"].filter(Boolean).join(" and ");
+      await notify(io, user.id, {
+        type: isCompleted ? "credits_granted" : "credits_revoked",
+        title: isCompleted ? "Your purchase is confirmed" : "A purchase was reversed",
+        body: isCompleted
+          ? `You now have ${what} ready to use. Upload your plan in the Estimator.`
+          : `Your payment for ${what} was reversed, so those credits were removed.`,
+        link: "/estimator",
       }).catch(() => {});
     }
   }

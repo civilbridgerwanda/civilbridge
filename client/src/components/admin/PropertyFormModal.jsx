@@ -3,7 +3,8 @@ import { Loader2 } from "lucide-react";
 import Modal from "../Modal";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
-import { RWANDA_LOCATIONS } from "../../lib/locations";
+import { sectorsOf } from "../../lib/locations";
+import LocationSelect from "../LocationSelect";
 import ImageGalleryField from "./ImageGalleryField";
 import { firstImageUrl } from "../../lib/mediaType";
 
@@ -15,8 +16,10 @@ export default function PropertyFormModal({ property, onClose, onSaved }) {
     description: property?.description || "",
     property_type: property?.property_type || "house",
     price: property?.price || "",
-    city: property?.city || "",
-    district: property?.district || "",
+    // Older listings hold a free-text neighbourhood here; only a real district
+    // is carried into the picker, so the admin re-picks rather than saving junk.
+    district: sectorsOf(property?.district).length ? property.district : "",
+    sector: property?.sector || "",
     size_sqm: property?.size_sqm || "",
     bedrooms: property?.bedrooms || "",
     bathrooms: property?.bathrooms || "",
@@ -90,32 +93,12 @@ export default function PropertyFormModal({ property, onClose, onSaved }) {
             />
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-semibold text-ink-900">City</label>
-            <select
-              required
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-              value={form.city}
-              onChange={(e) => setForm({ ...form, city: e.target.value })}
-            >
-              <option value="">Select...</option>
-              {RWANDA_LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-ink-900">District</label>
-            <input
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-              value={form.district}
-              onChange={(e) => setForm({ ...form, district: e.target.value })}
-            />
-          </div>
-        </div>
+        <LocationSelect
+          required
+          district={form.district}
+          sector={form.sector}
+          onChange={(loc) => setForm({ ...form, ...loc })}
+        />
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className="block text-sm font-semibold text-ink-900">Size (sqm)</label>

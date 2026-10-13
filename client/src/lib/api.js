@@ -57,6 +57,36 @@ async function uploadFiles(path, files, token) {
 }
 
 export const api = {
+  // Reviews - one shape for every target: kind is "expert" | "plan" | "property".
+  // The reply carries the reviews, the aggregate, and whether *this viewer*
+  // may add one (and why not) - the server is the source of truth for that.
+  getReviews: (kind, id, token) =>
+    request(`/${kind}s/${id}/reviews`, token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+  submitReview: (kind, id, payload, token) =>
+    request(`/${kind}s/${id}/reviews`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    }),
+  removeMyReview: (kind, id, token) =>
+    request(`/${kind}s/${id}/reviews/mine`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }),
+  adminRemoveReview: (kind, reviewId, token) =>
+    request(`/admin/reviews/${kind}/${reviewId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }),
+
+  // Plan cards + pay-as-you-go prices, generated from the server's pricing config.
+  getPricing: () => request("/pricing"),
+
+  // Homepage counters (public, real numbers).
+  getPublicStats: () => request("/stats/public"),
+
+  // Tour request / enquiry for a property - recorded server-side and routed to support.
+  requestPropertyVisit: (id, payload, token) =>
+    request(`/properties/${id}/visits`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    }),
+
   getProperties: (params = {}, token) => {
     const qs = toQueryString(params);
     return request(`/properties${qs ? `?${qs}` : ""}`, token ? { headers: { Authorization: `Bearer ${token}` } } : {});
@@ -71,15 +101,6 @@ export const api = {
     }),
   deleteProperty: (id, token) =>
     request(`/properties/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }),
-  getPropertyReviews: (id, token) =>
-    request(`/properties/${id}/reviews`, { headers: { Authorization: `Bearer ${token}` } }),
-  submitPropertyReview: (id, payload, token) =>
-    request(`/properties/${id}/reviews`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(payload),
-    }),
-
   getExperts: (params = {}) => {
     const qs = toQueryString(params);
     return request(`/experts${qs ? `?${qs}` : ""}`);
@@ -90,13 +111,6 @@ export const api = {
     request("/experts", {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: JSON.stringify(payload),
-    }),
-  getExpertReviews: (id) => request(`/experts/${id}/reviews`),
-  submitExpertReview: (id, payload, token) =>
-    request(`/experts/${id}/reviews`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
     }),
   addPortfolioItem: (payload, token) =>
@@ -117,13 +131,6 @@ export const api = {
   getPlan: (id, token) => request(`/plans/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
   submitPlanInquiry: (planId, payload, token) =>
     request(`/plans/${planId}/inquiries`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(payload),
-    }),
-  getPlanReviews: (id, token) => request(`/plans/${id}/reviews`, { headers: { Authorization: `Bearer ${token}` } }),
-  submitPlanReview: (id, payload, token) =>
-    request(`/plans/${id}/reviews`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
@@ -182,6 +189,7 @@ export const api = {
     request("/contact", { method: "POST", body: JSON.stringify(payload) }),
 
   uploadImage: (file, token) => uploadFile("/uploads/image", file, token),
+  uploadPlan: (file, token) => uploadFile("/uploads/plan", file, token),
   uploadImages: (files, token) => uploadFiles("/uploads/images", files, token),
 
   adminStats: (token) => request("/admin/stats", { headers: { Authorization: `Bearer ${token}` } }),
@@ -286,11 +294,40 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: JSON.stringify({ status }),
     }),
-  assignEstimateExpert: (id, expertId, token) =>
-    request(`/estimates/${id}/assign`, {
+  saveEstimateResults: (id, payload, token) =>
+    request(`/estimates/${id}/results`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    }),
+  adminNudgeEstimate: (id, token) =>
+    request(`/admin/estimates/${id}/nudge`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }),
+  adminAssignEstimate: (id, expertId, token) =>
+    request(`/admin/estimates/${id}/assign`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ expert_id: expertId }),
+      body: JSON.stringify({ expert_id: expertId || null }),
+    }),
+
+  adminIntegrations: (token) => request("/admin/integrations", { headers: { Authorization: `Bearer ${token}` } }),
+  adminDispatchQueued: (token) =>
+    request("/admin/agent/dispatch-queued", { method: "POST", headers: { Authorization: `Bearer ${token}` } }),
+  adminExperts: (token) => request("/admin/experts", { headers: { Authorization: `Bearer ${token}` } }),
+  adminSetExpertVerified: (id, isVerified, token) =>
+    request(`/admin/experts/${id}/verify`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ is_verified: isVerified }),
+    }),
+  adminVisits: (token, params = {}) => {
+    const qs = toQueryString(params);
+    return request(`/admin/visits${qs ? `?${qs}` : ""}`, { headers: { Authorization: `Bearer ${token}` } });
+  },
+  adminUpdateVisit: (id, status, token) =>
+    request(`/admin/visits/${id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
     }),
 
   getNotifications: (token) => request("/notifications", { headers: { Authorization: `Bearer ${token}` } }),

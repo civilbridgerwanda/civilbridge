@@ -5,18 +5,13 @@ import Modal from "./Modal";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
-// Properties don't have their own inquiry table (Plans do, via
-// /plans/:id/inquiries) - reusing that machinery here would mean building
-// a second parallel inquiry pipeline just for a UI refinement. Instead this
-// composes the details into one message and sends it through the real
-// messaging system that already exists.
-//
-// Gatekeeping: this always goes to CivilBridge support first, never
-// straight to the property's owner - the team is the single point of
-// contact for every tour/inquiry submission and relays it on manually.
-// This is deliberately different from the "Contact Owner" button elsewhere
-// on the page, which is the client explicitly choosing to message that
-// specific owner directly - that stays direct.
+// Sends a tour request or enquiry through POST /properties/:id/visits. The
+// server routes it to CivilBridge support first - never straight to the
+// property's owner - so the team is the single point of contact and relays
+// it on. A *tour* request also leaves a record; once the team marks that tour
+// completed, this person can review the property (see server lib/reviews.js).
+// That's deliberately different from the "Contact Owner" button elsewhere on
+// the page, which is the client choosing to message that owner directly.
 export default function PropertyInquiryModal({ property, onClose, mode = "details" }) {
   const { user, token } = useAuth();
   const navigate = useNavigate();
@@ -33,18 +28,20 @@ export default function PropertyInquiryModal({ property, onClose, mode = "detail
     setSubmitting(true);
     setError(null);
     try {
-      const recipientId = (await api.getSupportContact(token)).id;
-      const lines = [
-        mode === "tour" ? `Site tour request for "${property.title}"` : `Enquiry about "${property.title}"`,
-        property.owner && `Listing owner: ${property.owner.full_name} (${property.owner.id})`,
-        form.preferred_date && `Preferred date/time: ${new Date(form.preferred_date).toLocaleString()}`,
-        form.phone && `Phone/WhatsApp: ${form.phone}`,
-        "",
-        form.message || (mode === "tour" ? "I'd like to schedule a visit to see this property." : "I'd like more information about this listing."),
-      ];
-      const { id } = await api.startConversation(recipientId, token);
-      await api.sendMessage(id, lines.filter(Boolean).join("\n"), token);
-      navigate(`/messages/${id}`);
+      const result = await api.requestPropertyVisit(
+        property.id,
+        {
+          mode,
+          phone: form.phone,
+          preferred_date: form.preferred_date ? new Date(form.preferred_date).toISOString() : undefined,
+          message: form.message,
+          full_name: form.full_name,
+          email: form.email,
+        },
+        token
+      );
+      if (result.conversation_id) navigate(`/messages/${result.conversation_id}`);
+      else onClose();
     } catch (err) {
       setError(err.message);
     } finally {

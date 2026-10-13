@@ -7,7 +7,8 @@ import { socket } from "../lib/socket";
 import { fadeUp, stagger } from "../lib/motion";
 import Seo from "../components/Seo";
 import { SkeletonGrid, PropertyCardSkeleton } from "../components/Skeleton";
-import { RWANDA_LOCATIONS } from "../lib/locations";
+import { formatLocation } from "../lib/locations";
+import LocationSelect from "../components/LocationSelect";
 import { useAuth } from "../lib/AuthContext";
 import AuthGate from "../components/AuthGate";
 import { isAuthGateDismissed, dismissAuthGate } from "../lib/authGate";
@@ -93,7 +94,8 @@ export default function Marketplace() {
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
   const [activeType, setActiveType] = useState("all");
-  const [city, setCity] = useState("all");
+  const [district, setDistrict] = useState("");
+  const [sector, setSector] = useState("");
   const [priceRange, setPriceRange] = useState("");
   const [bedrooms, setBedrooms] = useState("any");
   const [bathrooms, setBathrooms] = useState("any");
@@ -117,7 +119,8 @@ export default function Marketplace() {
     api
       .getProperties({
         type: activeType,
-        city,
+        district,
+        sector,
         bedrooms,
         bathrooms,
         size_min: sizeMin || undefined,
@@ -132,7 +135,7 @@ export default function Marketplace() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [activeType, city, priceRange, bedrooms, bathrooms, sizeMin, debouncedSearch, sort]);
+  }, [activeType, district, sector, priceRange, bedrooms, bathrooms, sizeMin, debouncedSearch, sort]);
 
   // Live updates: a newly created property slides in immediately if it
   // matches the current filters - no refresh, no re-fetch.
@@ -231,18 +234,17 @@ export default function Marketplace() {
 
         {/* Filter dropdowns */}
         <div className="mt-4 flex flex-wrap gap-3">
-          <select
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-ink-900 focus:border-brand-400 focus:outline-none"
-          >
-            <option value="all">Location</option>
-            {RWANDA_LOCATIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <LocationSelect
+            mode="filter"
+            labels={false}
+            className="w-full sm:w-[24rem]"
+            district={district}
+            sector={sector}
+            onChange={(loc) => {
+              setDistrict(loc.district);
+              setSector(loc.sector);
+            }}
+          />
 
           <select
             value={priceRange}
@@ -404,11 +406,10 @@ export default function Marketplace() {
 
                   <div className="p-5">
                     <h3 className="text-lg font-bold text-ink-900">{p.title}</h3>
-                    {(p.city || p.district) && (
+                    {formatLocation(p) && (
                       <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
                         <MapPin className="h-4 w-4" />
-                        {p.city}
-                        {p.district ? `, ${p.district}` : ""}
+                        {formatLocation(p)}
                       </p>
                     )}
                     {metaLine(p) && <p className="mt-2 text-sm text-slate-500">{metaLine(p)}</p>}

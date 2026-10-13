@@ -20,9 +20,10 @@ import Seo from "../components/Seo";
 import MessageButton from "../components/MessageButton";
 import ImageGallery from "../components/ImageGallery";
 import SpecTable from "../components/SpecTable";
-import StarRating from "../components/StarRating";
+import RatingBadge from "../components/RatingBadge";
 import ReviewSection from "../components/ReviewSection";
 import PropertyInquiryModal from "../components/PropertyInquiryModal";
+import { formatLocation } from "../lib/locations";
 
 function badgeLabel(type) {
   if (type === "land") return "Land";
@@ -49,7 +50,7 @@ export default function PropertyDetail() {
       .finally(() => setLoading(false));
   }, [id, token]);
 
-  // Similar properties: same type + city first; if that's too thin, widen
+  // Similar properties: same type + district first; if that's too thin, widen
   // to just the same type so the section still has something useful.
   useEffect(() => {
     if (!property) return;
@@ -57,7 +58,7 @@ export default function PropertyDetail() {
 
     async function loadSimilar() {
       try {
-        let results = await api.getProperties({ type: property.property_type, city: property.city });
+        let results = await api.getProperties({ type: property.property_type, district: property.district });
         results = results.filter((p) => p.id !== property.id);
         if (results.length < 3) {
           const broader = await api.getProperties({ type: property.property_type });
@@ -108,7 +109,7 @@ export default function PropertyDetail() {
     <>
       <Seo
         title={property.title}
-        description={property.description || `${property.title} in ${property.city}, Rwanda.`}
+        description={property.description || `${property.title}${formatLocation(property) ? ` in ${formatLocation(property)}` : ""}, Rwanda.`}
         path={`/marketplace/${property.id}`}
       />
 
@@ -145,19 +146,13 @@ export default function PropertyDetail() {
               </div>
               <h1 className="mt-3 max-w-2xl text-2xl font-extrabold text-white sm:text-4xl">{property.title}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-white/80">
-                {(property.city || property.district) && (
+                {formatLocation(property) && (
                   <span className="flex items-center gap-1.5">
                     <MapPin className="h-4 w-4" />
-                    {property.city}
-                    {property.district ? `, ${property.district}` : ""}
+                    {formatLocation(property)}
                   </span>
                 )}
-                <span className="flex items-center gap-1.5">
-                  <StarRating value={property.rating} />
-                  {property.review_count > 0
-                    ? `${property.rating} (${property.review_count} review${property.review_count === 1 ? "" : "s"})`
-                    : "No reviews yet"}
-                </span>
+                <RatingBadge tone="light" rating={property.rating} reviewCount={property.review_count} emptyLabel="No reviews yet" />
               </div>
             </div>
           }
@@ -203,8 +198,8 @@ export default function PropertyDetail() {
                   { label: "Bedrooms", value: property.bedrooms },
                   { label: "Bathrooms", value: property.bathrooms },
                   { label: "Size", value: acres ? `${acres} acres` : property.size_sqm ? `${Number(property.size_sqm).toLocaleString()} sqm` : null },
-                  { label: "City", value: property.city },
-                  { label: "District", value: property.district },
+                  { label: "District", value: property.district || property.city },
+                  { label: "Sector", value: property.sector },
                 ]}
               />
             </div>
@@ -227,16 +222,7 @@ export default function PropertyDetail() {
               </div>
             </div>
 
-            <h2 className="mt-8 text-lg font-bold text-ink-900">Reviews</h2>
-            <div className="mt-3">
-              <ReviewSection
-                id={property.id}
-                getReviews={api.getPropertyReviews}
-                submitReview={api.submitPropertyReview}
-                excludeUserId={property.owner?.id}
-                onSubmitted={() => api.getProperty(id, token).then(setProperty).catch(() => {})}
-              />
-            </div>
+            <ReviewSection kind="property" id={property.id} onChanged={() => api.getProperty(id, token).then(setProperty).catch(() => {})} />
           </div>
 
           {/* Sidebar - sticky action panel, sitting entirely below the hero
@@ -324,9 +310,9 @@ export default function PropertyDetail() {
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold text-ink-900">{p.title}</h3>
-                    {p.city && (
+                    {formatLocation(p) && (
                       <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                        <MapPin className="h-3.5 w-3.5" /> {p.city}
+                        <MapPin className="h-3.5 w-3.5" /> {formatLocation(p)}
                       </p>
                     )}
                     <p className="mt-2 font-bold text-brand-500">

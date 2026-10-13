@@ -56,6 +56,21 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # Files people upload (property photos, plan previews, estimator plans) are
+    # stored on the API server and served by it at /uploads. Without this
+    # block they'd fall through to the React app above and come back as the
+    # home page instead of the image. The ^~ matters: without it the .jpg/.png
+    # rule at the bottom of this file wins and looks for the image in the
+    # website folder instead of asking the API.
+    location ^~ /uploads/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+
     # Socket.IO (live updates, messaging, notifications) needs the
     # WebSocket upgrade headers explicitly - a plain proxy_pass like /api/
     # above is not enough for this one.
@@ -70,10 +85,12 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Reasonable upload size for the property/expert-photo upload flow
-    # (Cloudinary is the actual storage - this is just what Nginx will
-    # forward through to Express/Multer before it gets there).
-    client_max_body_size 10M;
+    # Largest upload Nginx will forward to Express/Multer. The app itself
+    # accepts up to 50 MB (Estimator plan files - PDF/DWG/DXF/PLN/IFC/ZIP -
+    # and plan walkthrough videos), so this must be a little above that or
+    # Nginx rejects the upload with "413 Request Entity Too Large" before the
+    # app ever sees it. The API also takes JSON up to 1 MB, well under this.
+    client_max_body_size 55M;
 
     # Static asset caching - Vite fingerprints filenames (e.g.
     # index-a1b2c3.js), so these are safe to cache aggressively; a new

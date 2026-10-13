@@ -27,6 +27,8 @@ export const AiMessage = sequelize.define(
     conversation_id: { type: DataTypes.UUID, allowNull: false },
     role: { type: DataTypes.ENUM("user", "assistant"), allowNull: false },
     content: { type: DataTypes.TEXT, allowNull: false },
+    // Set on replies the backend agent is (or was) producing - see AgentJob.
+    job_id: { type: DataTypes.UUID },
     created_at: { type: DataTypes.DATE(6), defaultValue: DataTypes.NOW },
   },
   {

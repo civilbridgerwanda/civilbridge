@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { Plan, PlanInquiry, PlanReview, User } from "../models/index.js";
+import { Plan, PlanInquiry, User } from "../models/index.js";
 import { sendMail } from "../config/mailer.js";
 import { planInquiryConfirmationEmail } from "../config/emailTemplates.js";
 import { notify } from "../lib/notify.js";
@@ -13,25 +13,32 @@ const orderMap = {
   newest: [["created_at", "DESC"]],
   price_asc: [["price", "ASC"]],
   price_desc: [["price", "DESC"]],
-  rating: [["rating", "DESC"]],
+  rating: [
+    ["rating", "DESC"],
+    ["review_count", "DESC"],
+    ["created_at", "DESC"],
+  ],
 };
 
-// GET /api/plans?type=house&city=Kimihurura&search=villa&bedrooms=3
+// GET /api/plans?type=house&district=Gasabo&sector=Remera&search=villa&bedrooms=3
 //               &bathrooms=2&size_min=150
 //               &price_min=30000000&price_max=100000000
 //               &pill=newly_listed|best_value|prime_locations
 //               &sort=featured
 export async function list(req, res) {
   try {
-    const { type, city, search, bedrooms, bathrooms, size_min, price_min, price_max, pill, sort } = req.query;
+    const { type, district, sector, search, bedrooms, bathrooms, size_min, price_min, price_max, pill, sort } = req.query;
     const where = {};
 
     if (type && type !== "all") where.plan_type = type;
-    if (city && city !== "all") where.city = city;
+    if (district && district !== "all") where.district = district;
+    if (sector && sector !== "all") where.sector = sector;
     if (search) {
       where[Op.or] = [
         { title: { [Op.like]: `%${search}%` } },
         { city: { [Op.like]: `%${search}%` } },
+        { district: { [Op.like]: `%${search}%` } },
+        { sector: { [Op.like]: `%${search}%` } },
       ];
     }
     if (bedrooms && bedrooms !== "any") {
@@ -170,65 +177,5 @@ export async function createInquiry(req, res) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to submit your request" });
-  }
-}
-
-// ---------- Reviews ----------
-
-async function recomputeRating(planId) {
-  const reviews = await PlanReview.findAll({ where: { plan_id: planId }, attributes: ["rating"] });
-  const review_count = reviews.length;
-  const rating = review_count ? reviews.reduce((sum, r) => sum + r.rating, 0) / review_count : 0;
-  await Plan.update({ rating: Math.round(rating * 10) / 10, review_count }, { where: { id: planId } });
-}
-
-// GET /api/plans/:id/reviews
-export async function listReviews(req, res) {
-  try {
-    const reviews = await PlanReview.findAll({
-      where: { plan_id: req.params.id },
-      include: [{ model: User, as: "reviewer", attributes: ["full_name"] }],
-      order: [["created_at", "DESC"]],
-    });
-    res.json({ success: true, data: reviews });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Failed to fetch reviews" });
-  }
-}
-
-// POST /api/plans/:id/reviews  { rating, comment }
-// One review per (plan, reviewer) - submitting again updates it.
-export async function upsertReview(req, res) {
-  try {
-    const { rating, comment } = req.body;
-    const ratingNum = Number(rating);
-    if (!ratingNum || ratingNum < 1 || ratingNum > 5) {
-      return res.status(400).json({ success: false, message: "Rating must be between 1 and 5" });
-    }
-
-    const plan = await Plan.findByPk(req.params.id);
-    if (!plan) {
-      return res.status(404).json({ success: false, message: "Plan not found" });
-    }
-
-    const [review] = await PlanReview.findOrCreate({
-      where: { plan_id: plan.id, reviewer_id: req.user.sub },
-      defaults: { rating: ratingNum, comment },
-    });
-    review.rating = ratingNum;
-    review.comment = comment;
-    review.updated_at = new Date();
-    await review.save();
-
-    await recomputeRating(plan.id);
-
-    const withReviewer = await PlanReview.findByPk(review.id, {
-      include: [{ model: User, as: "reviewer", attributes: ["full_name"] }],
-    });
-    res.status(201).json({ success: true, data: withReviewer });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Failed to submit review" });
   }
 }

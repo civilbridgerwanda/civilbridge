@@ -56,7 +56,57 @@ const columnBackfills = [
   "ALTER TABLE experts ADD UNIQUE KEY unique_expert_user (user_id)",
   "ALTER TABLE properties ADD UNIQUE KEY unique_property_image (image_url)",
   "ALTER TABLE plans ADD UNIQUE KEY unique_plan_image (image_url)",
+  // District -> Sector location (replaces the old flat `city` list).
+  "ALTER TABLE experts ADD COLUMN district VARCHAR(100) NULL",
+  "ALTER TABLE experts ADD COLUMN sector VARCHAR(100) NULL",
+  "ALTER TABLE plans ADD COLUMN district VARCHAR(100) NULL",
+  "ALTER TABLE plans ADD COLUMN sector VARCHAR(100) NULL",
+  "ALTER TABLE properties ADD COLUMN sector VARCHAR(100) NULL",
+  "ALTER TABLE estimates ADD COLUMN district VARCHAR(100) NULL",
+  "ALTER TABLE estimates ADD COLUMN sector VARCHAR(100) NULL",
+  // Hybrid chat: a reply produced by the backend agent points at its job.
+  "ALTER TABLE ai_messages ADD COLUMN job_id CHAR(36) NULL",
+  // Why each reviewer was allowed to review (verified-client pipeline).
+  "ALTER TABLE users ADD COLUMN last_seen_at TIMESTAMP NULL DEFAULT NULL",
+  "ALTER TABLE users ADD COLUMN estimate_credits INT NOT NULL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN drawing_credits INT NOT NULL DEFAULT 0",
+  "ALTER TABLE estimates ADD COLUMN funding VARCHAR(12) NULL",
+  "ALTER TABLE estimates ADD COLUMN drawings_requested BOOLEAN NOT NULL DEFAULT FALSE",
+  "ALTER TABLE estimates ADD COLUMN priority BOOLEAN NOT NULL DEFAULT FALSE",
+  "ALTER TABLE payments ADD COLUMN payment_option VARCHAR(30) NULL",
+  "ALTER TABLE conversations ADD COLUMN started_by CHAR(36) NULL",
+  "ALTER TABLE estimates ADD COLUMN assigned_at TIMESTAMP NULL DEFAULT NULL",
+  "ALTER TABLE estimates ADD COLUMN last_nudged_at TIMESTAMP NULL DEFAULT NULL",
+  "ALTER TABLE expert_reviews ADD COLUMN basis VARCHAR(30) NULL",
+  "ALTER TABLE property_reviews ADD COLUMN basis VARCHAR(30) NULL",
+  "ALTER TABLE plan_reviews ADD COLUMN basis VARCHAR(30) NULL",
 ];
+
+// Rating columns are derived data - they must always equal what the review
+// tables say. Early sample data and an admin-form default wrote invented
+// values (4.5 stars, 5.0 with "47 reviews") straight into them, so every
+// migrate recomputes them from the real reviews: a listing with no reviews
+// goes back to 0 / 0 instead of keeping a fabricated score. Safe to re-run.
+const ratingRecomputes = [
+  ["experts", "expert_reviews", "expert_id"],
+  ["plans", "plan_reviews", "plan_id"],
+  ["properties", "property_reviews", "property_id"],
+].map(
+  ([parent, reviews, key]) =>
+    `UPDATE ${parent} p SET
+       p.review_count = (SELECT COUNT(*) FROM ${reviews} r WHERE r.${key} = p.id),
+       p.rating = COALESCE((SELECT ROUND(AVG(r.rating), 1) FROM ${reviews} r WHERE r.${key} = p.id), 0)`
+);
+// Same idea for "completed projects": the number of estimates an expert
+// verified, not a stored/seeded figure.
+// Estimates assigned before assigned_at existed: use when they were last touched.
+ratingRecomputes.push(
+  `UPDATE estimates SET assigned_at = updated_at WHERE assigned_expert_id IS NOT NULL AND assigned_at IS NULL`
+);
+ratingRecomputes.push(
+  `UPDATE experts e SET e.completed_projects =
+     (SELECT COUNT(*) FROM estimates s WHERE s.reviewed_by = e.id AND s.status = 'verified')`
+);
 
 // Catches a regression where a property/plan gets seeded with an image_url
 // already used by another row - each listing is presented as distinct and
@@ -168,13 +218,22 @@ async function migrate() {
     }
 
     if (withSampleData) {
-      console.log("3/3  Adding sample data (skips rows that already exist)...");
+      console.log("3/4  Adding sample data (skips rows that already exist)...");
       await connection.query(seedSql);
-      console.log("\n✅ Migration complete. Tables and sample data are ready.");
     } else {
-      console.log("3/3  Skipping sample data (run `npm run migrate:sample` if you want demo content).");
-      console.log("\n✅ Migration complete. Tables are ready and no sample data was added.");
+      console.log("3/4  Skipping sample data (run `npm run migrate:sample` if you want demo content).");
     }
+
+    // After the seed step on purpose: sample rows carry made-up ratings, and
+    // this pass is what resets them to what the (empty) review tables say.
+    console.log("4/4  Recomputing ratings from real reviews...");
+    for (const statement of ratingRecomputes) await connection.query(statement);
+
+    console.log(
+      withSampleData
+        ? "\n✅ Migration complete. Tables and sample data are ready."
+        : "\n✅ Migration complete. Tables are ready and no sample data was added."
+    );
   } catch (err) {
     console.error("\n❌ Migration failed:", err.message);
     process.exitCode = 1;

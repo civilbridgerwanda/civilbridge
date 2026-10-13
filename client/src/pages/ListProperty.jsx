@@ -3,7 +3,7 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
-import { RWANDA_LOCATIONS } from "../lib/locations";
+import LocationSelect from "../components/LocationSelect";
 import { trackEvent } from "../lib/analytics";
 import Seo from "../components/Seo";
 import ImageGalleryField from "../components/admin/ImageGalleryField";
@@ -18,8 +18,8 @@ export default function ListProperty() {
     description: "",
     property_type: "house",
     price: "",
-    city: "",
     district: "",
+    sector: "",
     size_sqm: "",
     bedrooms: "",
     bathrooms: "",
@@ -123,32 +123,16 @@ export default function ListProperty() {
           </div>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-semibold text-ink-900">City / Area</label>
-            <select
-              required
-              className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              value={form.city}
-              onChange={(e) => update("city", e.target.value)}
-            >
-              <option value="">Select...</option>
-              {RWANDA_LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-ink-900">District (optional)</label>
-            <input
-              placeholder="e.g. Gasabo"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              value={form.district}
-              onChange={(e) => update("district", e.target.value)}
-            />
-          </div>
+        <div>
+          <LocationSelect
+            required
+            district={form.district}
+            sector={form.sector}
+            onChange={(loc) => setForm((f) => ({ ...f, ...loc }))}
+          />
+          <p className="mt-1.5 text-xs text-slate-400">
+            Buyers see the district and sector only - never the exact address.
+          </p>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-3">

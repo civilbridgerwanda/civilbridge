@@ -1,7 +1,8 @@
 import { Op } from "sequelize";
 import { Conversation, Message, User } from "../models/index.js";
 import { notify } from "../lib/notify.js";
-import { findOrCreateConversation } from "../lib/conversations.js";
+import { findConversation, findOrCreateConversation } from "../lib/conversations.js";
+import { assertCanStartExpertConversation, LimitError } from "../lib/limits.js";
 
 // GET /api/messages/support-contact
 // Gives clients/experts someone to message for support without needing to
@@ -94,10 +95,18 @@ export async function startConversation(req, res) {
       return res.status(404).json({ success: false, message: "That user doesn't exist" });
     }
 
-    const conversation = await findOrCreateConversation(req.user.sub, participant_id);
+    // Re-opening an existing conversation is always free; only a genuinely
+    // NEW conversation with an expert counts toward the plan's monthly allowance.
+    if (!(await findConversation(req.user.sub, participant_id))) {
+      await assertCanStartExpertConversation(req.user.sub, participant_id);
+    }
+    const conversation = await findOrCreateConversation(req.user.sub, participant_id, req.user.sub);
 
     res.status(201).json({ success: true, data: { id: conversation.id } });
   } catch (err) {
+    if (err instanceof LimitError) {
+      return res.status(err.status).json({ success: false, code: err.code, limit: err.limit, message: err.message });
+    }
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to start conversation" });
   }

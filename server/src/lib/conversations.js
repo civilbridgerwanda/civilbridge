@@ -7,9 +7,19 @@ function orderedPair(a, b) {
   return a < b ? [a, b] : [b, a];
 }
 
-export async function findOrCreateConversation(userIdA, userIdB) {
+export async function findConversation(userIdA, userIdB) {
   const [user_a_id, user_b_id] = orderedPair(userIdA, userIdB);
-  const [conversation] = await Conversation.findOrCreate({ where: { user_a_id, user_b_id } });
+  return Conversation.findOne({ where: { user_a_id, user_b_id } });
+}
+
+// `startedBy` is recorded only when the conversation is actually created, and
+// is what the monthly expert-conversation allowance counts.
+export async function findOrCreateConversation(userIdA, userIdB, startedBy = null) {
+  const [user_a_id, user_b_id] = orderedPair(userIdA, userIdB);
+  const [conversation] = await Conversation.findOrCreate({
+    where: { user_a_id, user_b_id },
+    defaults: { started_by: startedBy },
+  });
   return conversation;
 }
 
@@ -21,7 +31,7 @@ export async function findOrCreateConversation(userIdA, userIdB) {
  * client's estimate.
  */
 export async function startConversationWithMessage(io, { senderId, recipientId, content, notificationTitle }) {
-  const conversation = await findOrCreateConversation(senderId, recipientId);
+  const conversation = await findOrCreateConversation(senderId, recipientId, senderId);
 
   const message = await Message.create({
     conversation_id: conversation.id,

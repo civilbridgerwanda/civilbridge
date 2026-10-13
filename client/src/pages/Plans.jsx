@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, Star, MapPin, SlidersHorizontal, ArrowRight } from "lucide-react";
+import { Search, MapPin, SlidersHorizontal, ArrowRight } from "lucide-react";
 import { api } from "../lib/api";
 import Seo from "../components/Seo";
 import { SkeletonGrid, PropertyCardSkeleton } from "../components/Skeleton";
 import { fadeUp, stagger } from "../lib/motion";
-import { RWANDA_LOCATIONS } from "../lib/locations";
+import { formatLocation } from "../lib/locations";
+import LocationSelect from "../components/LocationSelect";
+import RatingBadge from "../components/RatingBadge";
 import { useAuth } from "../lib/AuthContext";
 import AuthGate from "../components/AuthGate";
 import { isAuthGateDismissed, dismissAuthGate } from "../lib/authGate";
@@ -75,7 +77,8 @@ export default function Plans() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activePill, setActivePill] = useState("all");
   const [type, setType] = useState("all");
-  const [city, setCity] = useState("all");
+  const [district, setDistrict] = useState("");
+  const [sector, setSector] = useState("");
   const [priceRange, setPriceRange] = useState("");
   const [bedrooms, setBedrooms] = useState("any");
   const [bathrooms, setBathrooms] = useState("any");
@@ -98,7 +101,8 @@ export default function Plans() {
       .getPlans({
         pill: activePill === "all" ? undefined : activePill,
         type,
-        city,
+        district,
+        sector,
         bedrooms,
         bathrooms,
         size_min: sizeMin || undefined,
@@ -113,7 +117,7 @@ export default function Plans() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [activePill, type, city, priceRange, bedrooms, bathrooms, sizeMin, debouncedSearch, sort]);
+  }, [activePill, type, district, sector, priceRange, bedrooms, bathrooms, sizeMin, debouncedSearch, sort]);
 
   const visiblePlans = useMemo(() => plans.slice(0, visibleCount), [plans, visibleCount]);
 
@@ -205,18 +209,17 @@ export default function Plans() {
             ))}
           </select>
 
-          <select
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-ink-900 focus:border-brand-400 focus:outline-none"
-          >
-            <option value="all">Location</option>
-            {RWANDA_LOCATIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <LocationSelect
+            mode="filter"
+            labels={false}
+            className="w-full sm:w-[24rem]"
+            district={district}
+            sector={sector}
+            onChange={(loc) => {
+              setDistrict(loc.district);
+              setSector(loc.sector);
+            }}
+          />
 
           <select
             value={priceRange}
@@ -381,18 +384,11 @@ export default function Plans() {
                   <div className="p-4">
                     <h3 className="text-base font-bold leading-snug text-ink-900">{p.title}</h3>
 
-                    <div className="mt-2 flex text-gold-400">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          className="h-4 w-4"
-                          fill={i < Math.round(Number(p.rating)) ? "currentColor" : "none"}
-                          strokeWidth={1.5}
-                        />
-                      ))}
+                    <div className="mt-2">
+                      <RatingBadge variant="compact" rating={p.rating} reviewCount={p.review_count} emptyLabel="New" />
                     </div>
 
-                    {p.city && <p className="mt-2 text-sm text-slate-500">{p.city}</p>}
+                    {formatLocation(p) && <p className="mt-2 text-sm text-slate-500">{formatLocation(p)}</p>}
 
                     <p className="mt-2 text-lg font-bold text-brand-500">
                       {p.currency} {Number(p.price).toLocaleString()}

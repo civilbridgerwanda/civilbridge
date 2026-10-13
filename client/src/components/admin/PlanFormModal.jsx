@@ -6,6 +6,8 @@ import { useAuth } from "../../lib/AuthContext";
 import ImageGalleryField from "./ImageGalleryField";
 import SingleFileField from "./SingleFileField";
 import { firstImageUrl } from "../../lib/mediaType";
+import { sectorsOf } from "../../lib/locations";
+import LocationSelect from "../LocationSelect";
 
 export default function PlanFormModal({ plan, onClose, onSaved }) {
   const { token } = useAuth();
@@ -16,11 +18,11 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
     plan_type: plan?.plan_type || "house",
     price: plan?.price || "",
     license_price: plan?.license_price || "",
-    city: plan?.city || "",
+    district: sectorsOf(plan?.district).length ? plan.district : "",
+    sector: plan?.sector || "",
     bedrooms: plan?.bedrooms || "",
     bathrooms: plan?.bathrooms || "",
     size_sqm: plan?.size_sqm || "",
-    rating: plan?.rating || 4.5,
     badge: plan?.badge || "",
     is_prime_location: plan?.is_prime_location || false,
     images: plan?.images?.length ? plan.images : plan?.image_url ? [plan.image_url] : [],
@@ -43,7 +45,6 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
         size_sqm: form.size_sqm ? Number(form.size_sqm) : null,
         bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
         bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
-        rating: Number(form.rating),
         badge: form.badge || null,
         description: form.description.trim() || null,
         image_url: firstImageUrl(form.images),
@@ -126,14 +127,12 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
             onChange={(e) => setForm({ ...form, license_price: e.target.value })}
           />
         </div>
-        <div>
-          <label className="block text-sm font-semibold text-ink-900">City</label>
-          <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-            value={form.city}
-            onChange={(e) => setForm({ ...form, city: e.target.value })}
-          />
-        </div>
+        <LocationSelect
+          required
+          district={form.district}
+          sector={form.sector}
+          onChange={(loc) => setForm({ ...form, ...loc })}
+        />
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className="block text-sm font-semibold text-ink-900">Size (sqm)</label>

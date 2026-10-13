@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -18,6 +18,8 @@ import {
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
+  Cpu,
+  File as FileIcon,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { trackEvent } from "../lib/analytics";
@@ -27,15 +29,18 @@ import ChatMessageContent from "../components/ChatMessageContent";
 import { useAuth } from "../lib/AuthContext";
 import AuthGate from "../components/AuthGate";
 import Modal from "../components/Modal";
+import { socket } from "../lib/socket";
 
 const GREETING =
-  "Hey there! I'm your CivilBridge AI assistant - happy to help with construction planning, cost estimation, design ideas, or feasibility analysis. What's on your mind today?";
+  "Hey there! I'm your CivilBridge assistant. I can answer everyday questions right away, and when you need real numbers - a cost estimate, current material prices, or a drawing set - I hand it to our estimating engine and let you know the moment it's ready. What's on your mind?";
 
+// The first two are answered instantly; the last two are handed to the
+// estimating engine, so people learn the difference by trying it.
 const tryAsking = [
-  "I want to build a 3-bedroom house with a budget of 50 million RWF",
-  "What's the cost difference between brick and block construction?",
-  "Generate a plan for a small commercial building",
-  "What can I build on a 400 sqm plot in Kigali?",
+  "How do I get a cost estimate on CivilBridge?",
+  "What's the difference between brick and block walls?",
+  "Estimate the cost of a 3-bedroom house in Musanze with a 50 million RWF budget",
+  "Generate a floor plan and foundation plan for a 4-bedroom house",
 ];
 
 // Shown to signed-out visitors so they can see the chat UI before the app
@@ -122,6 +127,39 @@ export default function AIStudio() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation?.messages?.length, sending]);
+
+  // Layer 2 answers arrive later: the server rewrites the "working on it"
+  // message in place and pushes a socket event. Re-read the conversation when
+  // that fires - and, as a safety net for a missed event, every few seconds
+  // for as long as any message is still waiting on the engine.
+  const conversationId = conversation?.id;
+  const hasPendingJob = Boolean(
+    conversation?.messages?.some((m) => m.job && (m.job.status === "queued" || m.job.status === "running"))
+  );
+  const refreshConversation = useCallback(async () => {
+    if (!conversationId || !token) return;
+    try {
+      const fresh = await api.getAiConversation(conversationId, token);
+      setConversation((c) => (c && c.id === fresh.id ? { ...c, messages: fresh.messages } : c));
+    } catch {
+      /* a failed refresh just tries again on the next event/tick */
+    }
+  }, [conversationId, token]);
+
+  useEffect(() => {
+    if (!conversationId) return undefined;
+    const onJob = (job) => {
+      if (String(job?.conversation_id) === String(conversationId)) refreshConversation();
+    };
+    socket.on("agent:job_updated", onJob);
+    return () => socket.off("agent:job_updated", onJob);
+  }, [conversationId, refreshConversation]);
+
+  useEffect(() => {
+    if (!hasPendingJob) return undefined;
+    const timer = setInterval(refreshConversation, 5000);
+    return () => clearInterval(timer);
+  }, [hasPendingJob, refreshConversation]);
 
   async function sendMessage(text) {
     const trimmed = text.trim();
@@ -212,9 +250,9 @@ export default function AIStudio() {
     { icon: Calculator, title: "Generate Estimate", body: "Get detailed cost breakdown", to: "/estimator" },
     {
       icon: FileText,
-      title: "Create Custom Plan",
-      body: "AI-powered design",
-      onClick: () => sendMessage("Generate a custom plan for my project"),
+      title: "Generate Drawings",
+      body: "Floor plans, sections & more",
+      onClick: () => sendMessage("Generate a floor plan and foundation plan for my project"),
     },
     { icon: HomeIcon, title: "Browse Plans", body: "View ready-made options", to: "/plans" },
     { icon: MessageSquare, title: "Find Expert", body: "Connect with engineers", to: "/experts" },
@@ -377,7 +415,7 @@ export default function AIStudio() {
                 <div className="space-y-5">
                   <ChatBubble role="assistant" content={GREETING} />
                   {conversation?.messages.map((m) => (
-                    <ChatBubble key={m.id} role={m.role} content={m.content} />
+                    <ChatBubble key={m.id} role={m.role} content={m.content} job={m.job} deliverables={m.deliverables} />
                   ))}
                   {sending && <TypingBubble />}
                   <div ref={messagesEndRef} />
@@ -446,7 +484,7 @@ export default function AIStudio() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask anything about construction, costs, designs, or feasibility..."
+                placeholder="Ask a question, or describe what you'd like estimated or drawn..."
                 className="flex-1 rounded-full border border-slate-300 px-5 py-3 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
               />
               <button
@@ -469,8 +507,11 @@ export default function AIStudio() {
   );
 }
 
-function ChatBubble({ role, content }) {
+const CAD = ["dwg", "dxf", "ifc"];
+
+function ChatBubble({ role, content, job, deliverables }) {
   const isUser = role === "user";
+  const working = job && (job.status === "queued" || job.status === "running");
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -489,7 +530,54 @@ function ChatBubble({ role, content }) {
           isUser ? "bg-brand-500 text-white" : "border border-slate-200 bg-white text-slate-700"
         }`}
       >
-        <ChatMessageContent content={content} />
+        {job && !isUser && (
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <Cpu className="h-3 w-3" /> Estimating engine
+          </p>
+        )}
+        <ChatMessageContent content={content} inverted={isUser} />
+
+        {working && (
+          <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2.5">
+            <p className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-brand-500" />
+              {job.stage || (job.status === "queued" ? "Waiting to start" : "Working on it")}
+            </p>
+            {job.progress != null && (
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                <div className="h-full rounded-full bg-brand-500 transition-[width] duration-500" style={{ width: `${job.progress}%` }} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {deliverables?.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {deliverables.map((d) => (
+              <li key={d.id}>
+                <a
+                  href={d.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-brand-300 hover:bg-brand-50"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <FileIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    <span className="truncate">{d.label}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {d.format && (
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${CAD.includes(d.format) ? "bg-indigo-100 text-indigo-700" : "bg-slate-200 text-slate-600"}`}>
+                        {d.format}
+                      </span>
+                    )}
+                    <Download className="h-3.5 w-3.5" />
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </motion.div>
   );

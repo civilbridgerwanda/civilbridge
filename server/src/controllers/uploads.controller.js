@@ -3,6 +3,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 import { uploadBuffer, hasCloudinaryConfig } from "../config/cloudinary.js";
+import { getIntegrations } from "../config/integrations.js";
+import { checkPlanFile } from "../lib/planFiles.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, "../../uploads");
@@ -40,6 +42,36 @@ export async function uploadImage(req, res) {
     }
     const data = await uploadOne(req.file, req);
     res.json({ success: true, data });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message || "Upload failed" });
+  }
+}
+
+// POST /api/uploads/plan  (multipart/form-data, field name "file")
+// The Estimator's upload gate: a real PDF/CAD/BIM file. Always stored on this
+// server's own disk, never a third-party CDN - these are clients' private
+// blueprints, and CDN plans commonly cap non-image files far below CAD sizes.
+export async function uploadPlan(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+    const problem = checkPlanFile(req.file.originalname, req.file.buffer);
+    if (problem) return res.status(400).json({ success: false, message: problem });
+
+    const ext = path.extname(req.file.originalname || "").toLowerCase();
+    const filename = `${randomUUID()}${ext}`;
+    fs.writeFileSync(path.join(UPLOADS_DIR, filename), req.file.buffer);
+    res.json({
+      success: true,
+      data: {
+        url: `${getIntegrations().serverUrl}/uploads/${filename}`,
+        public_id: filename,
+        name: req.file.originalname,
+        size: req.file.size,
+      },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: err.message || "Upload failed" });

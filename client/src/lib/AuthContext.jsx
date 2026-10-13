@@ -34,11 +34,64 @@ export function AuthProvider({ children }) {
     setUser(newUser);
   }
 
-  // Live notifications/messages are delivered to a per-user Socket.IO
-  // room ("user:<id>") - join it whenever we know who's signed in.
+  // Live notifications/messages are delivered to private Socket.IO rooms, and
+  // the server only puts a connection in them once it has proved who it is -
+  // so we send our login token on every (re)connect. Doing it on "connect"
+  // also fixes notifications silently stopping after a dropped connection or
+  // an API restart, which used to lose the room for good.
+  //
+  // Experts additionally report whether the tab is in use, so the admin team
+  // can see who is actually on the site to be handed work: "away" when the tab
+  // is hidden or untouched for a few minutes, "active" again on any input.
   useEffect(() => {
-    if (user?.id) socket.emit("join:room", `user:${user.id}`);
-  }, [user?.id]);
+    if (!token || !user?.id) return undefined;
+
+    const isExpert = user.role === "expert";
+    const IDLE_MS = 5 * 60 * 1000;
+    let state = "active";
+    let idleTimer = null;
+    let lastInput = 0;
+
+    const report = () => {
+      if (isExpert) socket.emit("presence:state", state);
+    };
+    const setState = (next) => {
+      if (next === state) return;
+      state = next;
+      report();
+    };
+    const identify = () => socket.emit("auth", token, () => report());
+
+    const markActive = () => {
+      const now = Date.now();
+      if (now - lastInput < 5000) return; // input fires constantly; sample it
+      lastInput = now;
+      setState("active");
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => setState("away"), IDLE_MS);
+    };
+    const onVisibility = () => (document.hidden ? setState("away") : markActive());
+
+    if (socket.connected) identify();
+    socket.on("connect", identify);
+    if (isExpert) {
+      const events = ["pointerdown", "keydown", "scroll", "mousemove"];
+      events.forEach((e) => window.addEventListener(e, markActive, { passive: true }));
+      document.addEventListener("visibilitychange", onVisibility);
+      markActive();
+      return () => {
+        events.forEach((e) => window.removeEventListener(e, markActive));
+        document.removeEventListener("visibilitychange", onVisibility);
+        clearTimeout(idleTimer);
+        socket.off("connect", identify);
+        socket.emit("deauth");
+      };
+    }
+    return () => {
+      socket.off("connect", identify);
+      socket.emit("deauth");
+    };
+  }, [token, user?.id, user?.role]);
 
   // When a payment is confirmed (or reversed), the server pushes a
   // notification and the person's plan / per-plan access changes. Refresh
@@ -47,7 +100,14 @@ export function AuthProvider({ children }) {
   // data via a window event.
   useEffect(() => {
     if (!token) return;
-    const ENTITLEMENT_TYPES = ["plan_upgraded", "plan_downgraded", "plan_license_granted", "plan_license_revoked"];
+    const ENTITLEMENT_TYPES = [
+      "plan_upgraded",
+      "plan_downgraded",
+      "plan_license_granted",
+      "plan_license_revoked",
+      "credits_granted", // a pay-as-you-go estimate / drawing purchase was confirmed
+      "credits_revoked",
+    ];
     function handleNotification(n) {
       if (!ENTITLEMENT_TYPES.includes(n?.type)) return;
       api.me(token).then(setUser).catch(() => {});

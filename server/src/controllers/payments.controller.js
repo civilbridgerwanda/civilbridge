@@ -1,6 +1,13 @@
 import { Payment, Expert, User, Plan } from "../models/index.js";
 import { hasPaymentProviderConfig } from "../config/paymentProvider.js";
-import { PLAN_PRICES, ESTIMATE_BUNDLE_MULTIPLIER, PAYMENT_METHODS, SELF_SERVE_TIERS } from "../config/pricing.js";
+import {
+  PLAN_PRICES,
+  ESTIMATE_PRICES,
+  DRAWINGS_ADDON_PRICE,
+  ESTIMATE_PURCHASE_OPTIONS,
+  PAYMENT_METHODS,
+  SELF_SERVE_TIERS,
+} from "../config/pricing.js";
 import { sendMail } from "../config/mailer.js";
 import { paymentReceiptEmail, paymentAlertEmail, paymentConfirmedEmail } from "../config/emailTemplates.js";
 import { notify } from "../lib/notify.js";
@@ -10,7 +17,9 @@ import { hasPlanAccess, hasPendingPlanLicense, applyPaymentTransition } from "..
 // tied to a real purchase and drive automatic access changes when they're
 // marked completed (see lib/entitlements.js).
 const LEGACY_PURPOSES = ["expert_consultation", "priority_review", "listing_boost", "platform_fee"];
-const PURCHASE_PURPOSES = ["plan_upgrade", "plan_license"];
+// estimate_purchase / drawings_addon are the pay-as-you-go options: confirming
+// the payment adds credits to the buyer's account (lib/entitlements.js).
+const PURCHASE_PURPOSES = ["plan_upgrade", "plan_license", "estimate_purchase", "drawings_addon"];
 const PURPOSES = [...LEGACY_PURPOSES, ...PURCHASE_PURPOSES];
 
 // Who gets alerted that a payment needs verifying. FINANCE_EMAIL (one or
@@ -57,7 +66,31 @@ async function alertTeam(io, payment, payer) {
 // entirely server-side. Returns { error } (with an HTTP status) if the
 // request doesn't make sense.
 async function priceThePurchase(userId, body) {
-  const { purpose, target_plan, billing_period, reference_id, include_estimate } = body;
+  const { purpose, target_plan, billing_period, reference_id, include_estimate, estimate_option } = body;
+
+  if (purpose === "estimate_purchase") {
+    const option = ESTIMATE_PURCHASE_OPTIONS[estimate_option];
+    if (!option) {
+      return { status: 400, error: "Choose what you'd like to buy: a cost estimate, or an estimate with CAD drawings." };
+    }
+    return {
+      amount: option.price,
+      payment_option: estimate_option,
+      notes: `${option.label} (pay-as-you-go)`,
+      reference_type: "estimate_credit",
+      reference_id: null,
+    };
+  }
+
+  if (purpose === "drawings_addon") {
+    return {
+      amount: DRAWINGS_ADDON_PRICE,
+      payment_option: "drawings",
+      notes: "CAD drawing set add-on",
+      reference_type: "drawing_credit",
+      reference_id: null,
+    };
+  }
 
   if (purpose === "plan_upgrade") {
     if (!SELF_SERVE_TIERS.includes(target_plan)) {
@@ -96,10 +129,14 @@ async function priceThePurchase(userId, body) {
   if (await hasPendingPlanLicense(userId, plan.id)) {
     return { status: 409, error: "You already have a payment awaiting confirmation for this plan." };
   }
+  // The client chooses: the plan on its own, or the plan plus a cost estimate
+  // (the estimate is added at its standard price, so nothing is hidden in a
+  // "bundle" mark-up).
   const withEstimate = Boolean(include_estimate);
   const base = Number(plan.license_price);
   return {
-    amount: withEstimate ? Math.round(base * ESTIMATE_BUNDLE_MULTIPLIER) : base,
+    amount: withEstimate ? base + ESTIMATE_PRICES.estimate : base,
+    payment_option: withEstimate ? "plan_estimate" : "plan_only",
     notes: `${plan.title} - ${withEstimate ? "drawing pack + cost estimate" : "drawing pack download"}`,
     reference_type: "plan",
     reference_id: plan.id,
@@ -110,6 +147,8 @@ async function priceThePurchase(userId, body) {
 //   legacy:   { amount, purpose, recipient_expert_id?, payment_method? }
 //   purchase: { purpose: "plan_upgrade", target_plan, billing_period, payment_method, provider_reference? }
 //             { purpose: "plan_license", reference_id (plan id), include_estimate?, payment_method, provider_reference? }
+//             { purpose: "estimate_purchase", estimate_option: "estimate" | "estimate_drawings", payment_method, ... }
+//             { purpose: "drawings_addon", payment_method, ... }
 export async function create(req, res) {
   try {
     const io = req.app.get("io");
@@ -286,7 +325,12 @@ export async function updateStatus(req, res) {
       if (payer) {
         sendMail({
           to: payer.email,
-          subject: payment.purpose === "plan_upgrade" ? "Your plan is active" : "Your download is unlocked",
+          subject:
+            payment.purpose === "plan_upgrade"
+              ? "Your plan is active"
+              : payment.purpose === "estimate_purchase" || payment.purpose === "drawings_addon"
+                ? "Your purchase is confirmed"
+                : "Your download is unlocked",
           html: paymentConfirmedEmail({
             fullName: payer.full_name.split(" ")[0],
             notes: payment.notes,

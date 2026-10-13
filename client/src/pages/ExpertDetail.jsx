@@ -1,17 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Star, Briefcase, BadgeCheck, ArrowLeft, Loader2 } from "lucide-react";
+import { Briefcase, BadgeCheck, ArrowLeft, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 import Seo from "../components/Seo";
 import MessageButton from "../components/MessageButton";
-import StarRating from "../components/StarRating";
+import RatingBadge from "../components/RatingBadge";
 import ReviewSection from "../components/ReviewSection";
 import Avatar from "../components/Avatar";
-
-function formatRating(rating) {
-  const n = Number(rating);
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
-}
+import { formatLocation } from "../lib/locations";
 
 export default function ExpertDetail() {
   const { id } = useParams();
@@ -30,7 +26,7 @@ export default function ExpertDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Similar experts: same category + city first; widen to just the same
+  // Similar experts: same category + district first; widen to just the same
   // category if that's too thin.
   useEffect(() => {
     if (!expert) return;
@@ -38,7 +34,7 @@ export default function ExpertDetail() {
 
     async function loadSimilar() {
       try {
-        let results = await api.getExperts({ category: expert.category, city: expert.city });
+        let results = await api.getExperts({ category: expert.category, district: expert.district });
         results = results.filter((e) => e.id !== expert.id);
         if (results.length < 3) {
           const broader = await api.getExperts({ category: expert.category });
@@ -86,7 +82,7 @@ export default function ExpertDetail() {
     <div className="mx-auto max-w-3xl px-6 py-10">
       <Seo
         title={expert.full_name}
-        description={`${expert.specialty}${expert.city ? ` in ${expert.city}` : ""} - CivilBridge verified expert.`}
+        description={`${expert.specialty}${formatLocation(expert) ? ` in ${formatLocation(expert)}` : ""} - CivilBridge expert.`}
         path={`/experts/${expert.id}`}
       />
 
@@ -114,16 +110,12 @@ export default function ExpertDetail() {
           <div>
             <h1 className="text-2xl font-bold text-ink-900">{expert.full_name}</h1>
             <p className="text-brand-500">{expert.specialty}</p>
-            {expert.city && <p className="text-sm text-slate-400">{expert.city}, Rwanda</p>}
+            {formatLocation(expert) && <p className="text-sm text-slate-400">{formatLocation(expert)}, Rwanda</p>}
           </div>
         </div>
 
-        <div className="mt-6 flex items-center gap-2">
-          <StarRating value={expert.rating} />
-          <span className="text-sm font-semibold text-ink-900">{formatRating(expert.rating)}</span>
-          <span className="text-sm text-tertiary">
-            {expert.review_count > 0 ? `(${expert.review_count} reviews)` : "No reviews yet"}
-          </span>
+        <div className="mt-6">
+          <RatingBadge rating={expert.rating} reviewCount={expert.review_count} emptyLabel="No reviews yet" />
         </div>
 
         <div className="mt-6 grid gap-6 sm:grid-cols-2">
@@ -135,10 +127,14 @@ export default function ExpertDetail() {
             <p className="text-xs font-semibold uppercase text-slate-400">Experience</p>
             <p className="mt-1 text-ink-900">{expert.years_experience} years</p>
           </div>
-          <div className="sm:col-span-2 flex items-center gap-2">
-            <Briefcase className="h-4 w-4 text-brand-500" />
-            <span className="text-ink-900">{expert.completed_projects} completed projects</span>
-          </div>
+          {expert.completed_projects > 0 && (
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-brand-500" />
+              <span className="text-ink-900">
+                {expert.completed_projects} verified project{expert.completed_projects === 1 ? "" : "s"} on CivilBridge
+              </span>
+            </div>
+          )}
         </div>
 
         {expert.bio && (
@@ -174,13 +170,7 @@ export default function ExpertDetail() {
         </div>
       )}
 
-      <ReviewSection
-        id={expert.id}
-        getReviews={api.getExpertReviews}
-        submitReview={api.submitExpertReview}
-        excludeUserId={expert.user_id}
-        onSubmitted={() => api.getExpert(id).then(setExpert).catch(() => {})}
-      />
+      <ReviewSection kind="expert" id={expert.id} onChanged={() => api.getExpert(id).then(setExpert).catch(() => {})} />
 
       {similar.length > 0 && (
         <div className="mt-14">
@@ -199,9 +189,8 @@ export default function ExpertDetail() {
                     <p className="truncate text-sm text-brand-500">{e.specialty}</p>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center gap-1.5 text-sm text-slate-600">
-                  <Star className="h-3.5 w-3.5 text-gold-400" fill="currentColor" />
-                  {formatRating(e.rating)} ({e.review_count})
+                <div className="mt-3">
+                  <RatingBadge variant="compact" rating={e.rating} reviewCount={e.review_count} emptyLabel="New" />
                 </div>
               </Link>
             ))}

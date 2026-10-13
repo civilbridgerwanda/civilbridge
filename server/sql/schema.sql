@@ -23,6 +23,14 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(30),
   email_verified BOOLEAN DEFAULT FALSE,
   is_suspended BOOLEAN DEFAULT FALSE,
+  -- Estimates / drawing sets the person has bought (pay-as-you-go) and not
+  -- yet used. Added when a payment is confirmed, spent when they submit an
+  -- estimate once their monthly allowance runs out. See lib/allowance.js.
+  estimate_credits INT NOT NULL DEFAULT 0,
+  drawing_credits INT NOT NULL DEFAULT 0,
+  -- When they last had the site open (stamped when their connection drops).
+  -- Lets the team see "last on 20 minutes ago" for an expert who isn't online.
+  last_seen_at TIMESTAMP NULL DEFAULT NULL,
   plan ENUM('starter', 'professional', 'business') NOT NULL DEFAULT 'starter',
   -- Freemium daily-credit system: starter-plan users get a fixed number of
   -- credits that reset every 24h, spent only on actions where the AI does
@@ -63,7 +71,11 @@ CREATE TABLE IF NOT EXISTS experts (
   review_count INT DEFAULT 0,
   completed_projects INT DEFAULT 0,
   avatar_url VARCHAR(500),
+  -- `city` predates the District -> Sector picker and is no longer written
+  -- (kept so old rows still display); district/sector are the real location.
   city VARCHAR(100),
+  district VARCHAR(100),
+  sector VARCHAR(100),
   view_count INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY unique_expert_user (user_id),
@@ -81,6 +93,7 @@ CREATE TABLE IF NOT EXISTS properties (
   currency VARCHAR(10) DEFAULT 'RWF',
   city VARCHAR(100),
   district VARCHAR(100),
+  sector VARCHAR(100),
   size_sqm DECIMAL(10,2),
   bedrooms INT NULL,
   bathrooms INT NULL,
@@ -119,6 +132,19 @@ CREATE TABLE IF NOT EXISTS estimates (
   reviewed_by CHAR(36) NULL,
   assigned_expert_id CHAR(36) NULL,
   attachment_url VARCHAR(500) NULL,
+  district VARCHAR(100) NULL,
+  sector VARCHAR(100) NULL,
+  -- How this estimate was paid for: quota (their monthly allowance), paid (a
+  -- purchased credit) or admin. Monthly usage counts only "quota" ones.
+  funding VARCHAR(12) NULL,
+  drawings_requested BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Set from the account level at submission (Professional/Business) - the
+  -- assignment queue shows these first.
+  priority BOOLEAN NOT NULL DEFAULT FALSE,
+  -- When the team handed it to an expert, and when they last chased them up -
+  -- so "waiting 6 hours" and the follow-up cooldown are real, not guessed.
+  assigned_at TIMESTAMP NULL DEFAULT NULL,
+  last_nudged_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
@@ -147,6 +173,8 @@ CREATE TABLE IF NOT EXISTS plans (
   price DECIMAL(14,2) NOT NULL,
   currency VARCHAR(10) DEFAULT 'RWF',
   city VARCHAR(100),
+  district VARCHAR(100),
+  sector VARCHAR(100),
   bedrooms INT NULL,
   bathrooms INT NULL,
   size_sqm DECIMAL(10,2),
@@ -192,8 +220,57 @@ CREATE TABLE IF NOT EXISTS ai_messages (
   conversation_id CHAR(36) NOT NULL,
   role ENUM('user', 'assistant') NOT NULL,
   content TEXT NOT NULL,
+  -- Set when this reply is being produced by the backend agent (Layer 2 of
+  -- the hybrid chat). The row is created immediately as a "working on it"
+  -- placeholder, then rewritten in place when the job finishes.
+  job_id CHAR(36) NULL,
   created_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
   FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Work handed to the backend AI agent (n8n today, a proprietary model
+-- later - see server/src/agent). One row per request; the agent reports
+-- progress and results back by job id.
+CREATE TABLE IF NOT EXISTS agent_jobs (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  user_id CHAR(36) NULL,
+  kind VARCHAR(40) NOT NULL,
+  status ENUM('queued', 'running', 'completed', 'failed') NOT NULL DEFAULT 'queued',
+  provider VARCHAR(40) NULL,
+  input LONGTEXT NULL,
+  result LONGTEXT NULL,
+  stage VARCHAR(120) NULL,
+  progress INT NULL,
+  error VARCHAR(500) NULL,
+  external_ref VARCHAR(120) NULL,
+  attempts INT NOT NULL DEFAULT 0,
+  estimate_id CHAR(36) NULL,
+  conversation_id CHAR(36) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  started_at TIMESTAMP NULL DEFAULT NULL,
+  completed_at TIMESTAMP NULL DEFAULT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_agent_jobs_status (status),
+  KEY idx_agent_jobs_estimate (estimate_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (estimate_id) REFERENCES estimates(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Files the agent produced for a job: drawing sets (DWG/DXF/IFC/PDF), 2D/3D
+-- renders, spreadsheets. Only ever a link - the files themselves live
+-- wherever the agent put them (or our uploads folder).
+CREATE TABLE IF NOT EXISTS agent_deliverables (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  job_id CHAR(36) NOT NULL,
+  estimate_id CHAR(36) NULL,
+  kind VARCHAR(40) NOT NULL DEFAULT 'other',
+  format VARCHAR(20) NULL,
+  label VARCHAR(200) NOT NULL,
+  url VARCHAR(500) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_agent_deliverables_estimate (estimate_id),
+  FOREIGN KEY (job_id) REFERENCES agent_jobs(id) ON DELETE CASCADE,
+  FOREIGN KEY (estimate_id) REFERENCES estimates(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- Links a user to their Google/Facebook/X identity. A user can have
@@ -228,6 +305,9 @@ CREATE TABLE IF NOT EXISTS payments (
   status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
   payment_method VARCHAR(30) NULL,
   target_plan VARCHAR(30) NULL,
+  -- Which choice the buyer made (estimate | estimate_drawings | plan_only |
+  -- plan_estimate) - set server-side, drives what a confirmed payment grants.
+  payment_option VARCHAR(30) NULL,
   notes VARCHAR(500) NULL,
   provider VARCHAR(50) NULL,
   provider_reference VARCHAR(255) NULL,
@@ -276,6 +356,9 @@ CREATE TABLE IF NOT EXISTS conversations (
   id CHAR(36) NOT NULL PRIMARY KEY,
   user_a_id CHAR(36) NOT NULL,
   user_b_id CHAR(36) NOT NULL,
+  -- Who opened it: only conversations a person starts count toward their
+  -- plan's monthly expert-conversation allowance.
+  started_by CHAR(36) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY unique_pair (user_a_id, user_b_id),
@@ -325,6 +408,9 @@ CREATE TABLE IF NOT EXISTS expert_reviews (
   reviewer_id CHAR(36) NOT NULL,
   rating TINYINT NOT NULL,
   comment TEXT,
+  -- Why this reviewer was allowed to review (purchase | estimate |
+  -- consultation | tour). Set by the server at submit time, never the client.
+  basis VARCHAR(30) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY unique_review (expert_id, reviewer_id),
@@ -351,6 +437,7 @@ CREATE TABLE IF NOT EXISTS property_reviews (
   reviewer_id CHAR(36) NOT NULL,
   rating TINYINT NOT NULL,
   comment TEXT,
+  basis VARCHAR(30) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY unique_property_review (property_id, reviewer_id),
@@ -366,11 +453,32 @@ CREATE TABLE IF NOT EXISTS plan_reviews (
   reviewer_id CHAR(36) NOT NULL,
   rating TINYINT NOT NULL,
   comment TEXT,
+  basis VARCHAR(30) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY unique_plan_review (plan_id, reviewer_id),
   FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE,
   FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- A site-tour request for a property. The only proof that someone has really
+-- seen a listing, so it is what unlocks reviewing it: a person can rate a
+-- property only after our team marks their visit "completed". Owners can
+-- never mark their own visits complete (that would let them buy reviews).
+CREATE TABLE IF NOT EXISTS property_visits (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  property_id CHAR(36) NOT NULL,
+  user_id CHAR(36) NOT NULL,
+  status ENUM('requested', 'confirmed', 'completed', 'cancelled') NOT NULL DEFAULT 'requested',
+  preferred_date DATETIME NULL,
+  phone VARCHAR(40) NULL,
+  note VARCHAR(500) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  completed_at TIMESTAMP NULL DEFAULT NULL,
+  KEY idx_property_visits_user (user_id, property_id),
+  FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ==SEED DATA BELOW== (migrate.js splits the file on this exact comment

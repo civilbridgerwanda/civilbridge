@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Users,
   Building2,
@@ -12,7 +12,6 @@ import {
   TrendingUp,
   TrendingDown,
   Eye,
-  Star,
   CreditCard,
   Wallet,
   Clock,
@@ -42,8 +41,15 @@ import PropertyFormModal from "../../components/admin/PropertyFormModal";
 import PlanFormModal from "../../components/admin/PlanFormModal";
 import UserDetailModal from "../../components/admin/UserDetailModal";
 import Modal from "../../components/Modal";
+import ExpertsPanel from "../../components/admin/ExpertsPanel";
+import ToursPanel from "../../components/admin/ToursPanel";
+import IntegrationsPanel from "../../components/admin/IntegrationsPanel";
+import PresenceDot, { PRESENCE_TEXT } from "../../components/admin/PresenceDot";
+import { byAvailability, useAdminExperts } from "../../components/admin/useAdminExperts";
+import RatingBadge from "../../components/RatingBadge";
+import { formatLocation } from "../../lib/locations";
 
-const TABS = ["Overview", "Analytics", "Estimates", "Users", "Properties", "Plans", "Inquiries", "Payments", "Conversations", "Newsletter"];
+const TABS = ["Overview", "Analytics", "Estimates", "Users", "Experts", "Properties", "Tours", "Plans", "Inquiries", "Payments", "Conversations", "Integrations", "Newsletter"];
 const theme = getRoleTheme("admin");
 
 const paymentStatusStyles = {
@@ -56,11 +62,6 @@ const paymentStatusStyles = {
 function pctChange(current, previous) {
   if (previous === 0) return current > 0 ? 100 : 0;
   return Math.round(((current - previous) / previous) * 100);
-}
-
-function formatRating(rating) {
-  const n = Number(rating);
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
 export default function AdminDashboard() {
@@ -87,6 +88,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [assigningEstimateId, setAssigningEstimateId] = useState(null);
+  const [estimateFilter, setEstimateFilter] = useState("attention"); // "attention" | "all"
   const [updatingUserId, setUpdatingUserId] = useState(null);
   const [updatingPaymentId, setUpdatingPaymentId] = useState(null);
   const [lastLoaded, setLastLoaded] = useState(null);
@@ -184,6 +187,19 @@ export default function AdminDashboard() {
       alert(err.message);
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function handleAssignEstimate(estimateId, expertId) {
+    setAssigningEstimateId(estimateId);
+    try {
+      const result = await api.adminAssignEstimate(estimateId, expertId, token);
+      setEstimates((prev) => prev.map((e) => (e.id === estimateId ? { ...e, assigned_expert_id: result.assigned_expert_id } : e)));
+      setStats((s) => s && { ...s, awaitingAssignment: Math.max(0, (s.awaitingAssignment || 0) + (expertId ? -1 : 1)) });
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setAssigningEstimateId(null);
     }
   }
 
@@ -381,7 +397,7 @@ export default function AdminDashboard() {
     ? [
         { icon: Users, label: "Total Users", value: stats.userCount, trend: trends.userTrend },
         { icon: Building2, label: "Properties", value: stats.propertyCount },
-        { icon: HardHat, label: "Verified Experts", value: stats.expertCount },
+        { icon: HardHat, label: `Experts (${stats.verifiedExpertCount ?? 0} verified)`, value: stats.expertCount },
         { icon: FileText, label: "Building Plans", value: stats.planCount },
         { icon: Calculator, label: "Estimates", value: stats.estimateCount, trend: trends.estimateTrend },
         { icon: Mail, label: "Newsletter Subscribers", value: stats.subscriberCount },
@@ -436,6 +452,24 @@ export default function AdminDashboard() {
         <div className="mt-8">
           {tab === "Overview" && (
             <div className="space-y-6">
+              {stats?.awaitingAssignment > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTab("Estimates")}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-left transition-colors hover:bg-amber-100"
+                >
+                  <span className="flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-amber-600" />
+                    <span>
+                      <span className="block font-bold text-ink-900">
+                        {stats.awaitingAssignment} estimate{stats.awaitingAssignment === 1 ? "" : "s"} waiting for an expert
+                      </span>
+                      <span className="text-sm text-slate-600">The client is waiting - assign an expert to move it on.</span>
+                    </span>
+                  </span>
+                  <span className="text-sm font-semibold text-amber-700">Assign now →</span>
+                </button>
+              )}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {statCards.map((c) => {
                   const Icon = c.icon;
@@ -548,7 +582,7 @@ export default function AdminDashboard() {
                   render={(p) => (
                     <>
                       <p className="font-semibold text-ink-900">{p.title}</p>
-                      <p className="mt-0.5 text-xs text-slate-400">{p.city}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{formatLocation(p)}</p>
                     </>
                   )}
                   metric={(p) => (
@@ -567,8 +601,8 @@ export default function AdminDashboard() {
                     </>
                   )}
                   metric={(e) => (
-                    <span className={`flex items-center gap-1 text-sm font-semibold ${theme.text}`}>
-                      <Star className="h-3.5 w-3.5" fill="currentColor" /> {formatRating(e.rating)}
+                    <span className={`text-sm font-semibold ${theme.text}`}>
+                      <RatingBadge variant="compact" rating={e.rating} reviewCount={e.review_count} emptyLabel="No reviews" />
                     </span>
                   )}
                 />
@@ -579,7 +613,7 @@ export default function AdminDashboard() {
                     <>
                       <p className="font-semibold text-ink-900">{p.title}</p>
                       <p className="mt-0.5 text-xs text-slate-400">
-                        {formatRating(p.rating)} <Star className="inline h-3 w-3" fill="currentColor" />
+                        <RatingBadge variant="compact" rating={p.rating} reviewCount={p.review_count} emptyLabel="No reviews" />
                       </p>
                     </>
                   )}
@@ -594,51 +628,16 @@ export default function AdminDashboard() {
           )}
 
           {tab === "Estimates" && (
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Project</th>
-                    <th className="px-4 py-3">Client</th>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {estimates.map((e) => (
-                    <tr key={e.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-semibold text-ink-900">{e.project_name}</td>
-                      <td className="px-4 py-3 text-slate-500">{e.User?.full_name || "Guest"}</td>
-                      <td className="px-4 py-3 text-slate-500 capitalize">{e.project_type}</td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={e.status}
-                          disabled={updatingId === e.id}
-                          onChange={(ev) => handleStatusChange(e.id, ev.target.value)}
-                          className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-brand-400 focus:outline-none"
-                        >
-                          <option value="draft">Draft</option>
-                          <option value="ai_generated">AI Generated</option>
-                          <option value="under_review">Under Review</option>
-                          <option value="verified">Verified</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3 text-slate-400">
-                        {new Date(e.created_at).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                  {!estimates.length && (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                        No estimates yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <EstimatesTab
+              estimates={estimates}
+              onPatch={(id, patch) => setEstimates((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)))}
+              filter={estimateFilter}
+              onFilter={setEstimateFilter}
+              updatingId={updatingId}
+              assigningId={assigningEstimateId}
+              onStatusChange={handleStatusChange}
+              onAssign={handleAssignEstimate}
+            />
           )}
 
           {tab === "Users" && (
@@ -780,6 +779,10 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {tab === "Experts" && <ExpertsPanel />}
+          {tab === "Tours" && <ToursPanel />}
+          {tab === "Integrations" && <IntegrationsPanel />}
+
           {tab === "Properties" && (
             <div>
               <div className="mb-4 flex justify-end">
@@ -799,7 +802,7 @@ export default function AdminDashboard() {
                   <thead className="bg-slate-50 text-slate-500">
                     <tr>
                       <th className="px-4 py-3">Title</th>
-                      <th className="px-4 py-3">City</th>
+                      <th className="px-4 py-3">Location</th>
                       <th className="px-4 py-3">Price</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Views</th>
@@ -817,7 +820,7 @@ export default function AdminDashboard() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-slate-500">{p.city}</td>
+                        <td className="px-4 py-3 text-slate-500">{formatLocation(p)}</td>
                         <td className="px-4 py-3 text-slate-600">
                           {p.currency} {Number(p.price).toLocaleString()}
                         </td>
@@ -890,7 +893,7 @@ export default function AdminDashboard() {
                   <thead className="bg-slate-50 text-slate-500">
                     <tr>
                       <th className="px-4 py-3">Title</th>
-                      <th className="px-4 py-3">City</th>
+                      <th className="px-4 py-3">Location</th>
                       <th className="px-4 py-3">Price</th>
                       <th className="px-4 py-3">Rating</th>
                       <th className="px-4 py-3">Views</th>
@@ -901,11 +904,13 @@ export default function AdminDashboard() {
                     {plans.map((p) => (
                       <tr key={p.id} className="border-t border-slate-100">
                         <td className="px-4 py-3 font-semibold text-ink-900">{p.title}</td>
-                        <td className="px-4 py-3 text-slate-500">{p.city}</td>
+                        <td className="px-4 py-3 text-slate-500">{formatLocation(p)}</td>
                         <td className="px-4 py-3 text-slate-600">
                           {p.currency} {Number(p.price).toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-slate-500">{formatRating(p.rating)}</td>
+                        <td className="px-4 py-3 text-slate-500">
+                          <RatingBadge variant="compact" rating={p.rating} reviewCount={p.review_count} emptyLabel="-" />
+                        </td>
                         <td className="px-4 py-3 text-slate-400">{p.view_count}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
@@ -1353,6 +1358,193 @@ function Leaderboard({ title, items, render, metric }) {
       ) : (
         <p className="mt-4 text-sm text-slate-400">No data yet.</p>
       )}
+    </div>
+  );
+}
+
+// Estimates, with the team's core job on them: handing each one to an expert.
+// Rows that still need an expert are highlighted and listed first; the client
+// only ever hears "we're on it" - who was picked stays in here.
+const needsExpert = (e) => ["draft", "ai_generated"].includes(e.status) && !e.assigned_expert_id;
+
+function engineNote(e) {
+  if (e.status !== "draft") return "Analysed";
+  if (e.job_status === "running") return "Engine working";
+  if (e.job_status === "failed") return "Engine failed - needs an expert";
+  return "Needs an expert to analyse it";
+}
+
+const NUDGE_COOLDOWN_MS = 30 * 60 * 1000; // mirrors the server's follow-up allowance
+
+function EstimatesTab({ estimates, onPatch, filter, onFilter, updatingId, assigningId, onStatusChange, onAssign }) {
+  const { token } = useAuth();
+  // Experts with live presence + workload, most available first, so the person
+  // assigning can see who is actually here and how busy they are.
+  const { experts: liveExperts, reload: reloadExperts } = useAdminExperts();
+  const sortedExperts = useMemo(() => [...(liveExperts || [])].sort(byAvailability), [liveExperts]);
+  const [nudgingId, setNudgingId] = useState(null);
+  const [notes, setNotes] = useState({}); // estimate id -> { text, error }
+  // Professional/Business clients (priority) come first, then oldest first -
+  // the queue is worked from the top.
+  const byUrgency = (a, b) =>
+    Number(Boolean(b.priority)) - Number(Boolean(a.priority)) || new Date(a.created_at) - new Date(b.created_at);
+  const waiting = estimates.filter(needsExpert).sort(byUrgency);
+  const rows = filter === "attention" ? waiting : estimates;
+
+  async function assign(estimateId, expertId) {
+    await onAssign(estimateId, expertId);
+    reloadExperts(); // their open-work count just changed
+  }
+
+  async function nudge(e) {
+    setNudgingId(e.id);
+    try {
+      const result = await api.adminNudgeEstimate(e.id, token);
+      onPatch(e.id, { last_nudged_at: result.last_nudged_at, expert_presence: result.presence });
+      setNotes((n) => ({
+        ...n,
+        [e.id]: { text: result.emailed ? "Sent - they're offline, so it went by email too." : "Reminder sent." },
+      }));
+    } catch (err) {
+      setNotes((n) => ({ ...n, [e.id]: { text: err.message, error: true } }));
+    } finally {
+      setNudgingId(null);
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-xl text-sm text-slate-500">
+          You're alerted when an estimate needs an expert. Assign one here - only that expert can see it, and the client is
+          simply told to wait and is notified once everything is done. The picker shows who's on the site right now and how
+          busy they are; use <strong>Follow up</strong> to chase assigned work.
+        </p>
+        <div className="flex gap-2">
+          {[
+            ["attention", `Needs assignment (${waiting.length})`],
+            ["all", "All estimates"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onFilter(value)}
+              className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+                filter === value ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border border-slate-200">
+        <table className="w-full min-w-[900px] text-left text-sm">
+          <thead className="bg-slate-50 text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Project</th>
+              <th className="px-4 py-3">Client</th>
+              <th className="px-4 py-3">Progress</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Expert</th>
+              <th className="px-4 py-3">Follow-up</th>
+              <th className="px-4 py-3">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((e) => (
+              <tr key={e.id} className={`border-t border-slate-100 ${needsExpert(e) ? "bg-amber-50/60" : ""}`}>
+                <td className="px-4 py-3 font-semibold text-ink-900">
+                  <Link to={`/estimates/${e.id}`} className="hover:underline">
+                    {e.project_name}
+                  </Link>
+                  {formatLocation(e) && <span className="block text-xs font-normal text-slate-400">{formatLocation(e)}</span>}
+                  <span className="mt-1 flex flex-wrap gap-1">
+                    {e.priority && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">Priority</span>
+                    )}
+                    {e.drawings_requested && (
+                      <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase text-violet-700">+ Drawings</span>
+                    )}
+                    {e.funding === "paid" && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">Paid</span>
+                    )}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">{e.User?.full_name || "Guest"}</td>
+                <td className="px-4 py-3 text-xs text-slate-500">{engineNote(e)}</td>
+                <td className="px-4 py-3">
+                  <select
+                    value={e.status}
+                    disabled={updatingId === e.id}
+                    onChange={(ev) => onStatusChange(e.id, ev.target.value)}
+                    className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-brand-400 focus:outline-none"
+                  >
+                    <option value="draft">Received</option>
+                    <option value="ai_generated">Analysed</option>
+                    <option value="under_review">Under Review</option>
+                    <option value="verified">Verified</option>
+                  </select>
+                </td>
+                <td className="px-4 py-3">
+                  <select
+                    value={e.assigned_expert_id || ""}
+                    disabled={assigningId === e.id || e.status === "verified"}
+                    onChange={(ev) => assign(e.id, ev.target.value)}
+                    aria-label={`Assign an expert to ${e.project_name}`}
+                    className={`max-w-[190px] rounded-lg border px-2 py-1.5 text-xs focus:outline-none ${
+                      e.assigned_expert_id ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-white text-slate-700"
+                    }`}
+                  >
+                    <option value="">Unassigned</option>
+                    {sortedExperts.map((x) => (
+                      <option key={x.id} value={x.id} disabled={!x.is_verified && x.id !== e.assigned_expert_id}>
+                        {x.is_verified ? PRESENCE_TEXT[x.presence] : "Not verified"} · {x.full_name} ({x.specialty}) · {x.open_tasks} open
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-4 py-3 text-xs">
+                  {e.assigned_expert_id && e.status !== "verified" ? (
+                    <div className="space-y-1">
+                      <p className="text-slate-500">Assigned {e.assigned_at ? formatRelativeTime(e.assigned_at) : "earlier"}</p>
+                      <PresenceDot status={e.expert_presence || "offline"} />
+                      <div>
+                        {e.last_nudged_at && Date.now() - new Date(e.last_nudged_at).getTime() < NUDGE_COOLDOWN_MS ? (
+                          <span className="text-slate-400">Reminded {formatRelativeTime(e.last_nudged_at)}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={nudgingId === e.id}
+                            onClick={() => nudge(e)}
+                            className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+                          >
+                            {nudgingId === e.id ? "Sending…" : "Follow up"}
+                          </button>
+                        )}
+                      </div>
+                      {notes[e.id] && (
+                        <p className={notes[e.id].error ? "text-red-600" : "text-emerald-600"}>{notes[e.id].text}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-slate-300">-</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-slate-400">{new Date(e.created_at).toLocaleDateString()}</td>
+              </tr>
+            ))}
+            {!rows.length && (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                  {filter === "attention" ? "Nothing is waiting for an expert." : "No estimates yet."}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { attachUser, requireAdmin } from "../middleware/auth.js";
 import * as adminController from "../controllers/admin.controller.js";
+import * as adminOps from "../controllers/adminOps.controller.js";
+import * as reviews from "../controllers/reviews.controller.js";
 
 const router = Router();
 router.use(attachUser, requireAdmin);
@@ -8,6 +10,8 @@ router.use(attachUser, requireAdmin);
 router.get("/stats", adminController.stats);
 router.get("/analytics", adminController.analytics);
 router.get("/estimates", adminController.listEstimates);
+router.patch("/estimates/:id/assign", adminOps.assignEstimateToExpert);
+router.post("/estimates/:id/nudge", adminOps.nudgeEstimate);
 
 router.get("/users", adminController.listUsers);
 router.get("/users/:id", adminController.getUserDetail);
@@ -35,6 +39,21 @@ router.patch("/plan-inquiries/:id/assign", adminController.assignPlanInquiry);
 
 router.get("/payments", adminController.listAllPayments);
 router.patch("/payments/:id/status", adminController.updatePaymentStatus);
+
+// Integrations status (booleans only - never a key) and the agent queue.
+router.get("/integrations", adminOps.integrations);
+router.post("/agent/dispatch-queued", adminOps.dispatchQueuedJobs);
+
+// Verifying experts (a human credentials check) drives the "verified experts" counter.
+router.get("/experts", adminOps.listExperts);
+router.patch("/experts/:id/verify", adminOps.setExpertVerified);
+
+// Site-tour requests; completing one is what lets that visitor review the property.
+router.get("/visits", adminOps.listVisits);
+router.patch("/visits/:id", adminOps.updateVisitStatus);
+
+// Removing an abusive review (recomputes the parent's rating).
+router.delete("/reviews/:kind/:reviewId", reviews.adminRemove);
 
 // Read-only oversight of every direct conversation on the platform -
 // compliance/moderation visibility, not a participant-only view.

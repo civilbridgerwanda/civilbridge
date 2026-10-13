@@ -21,10 +21,11 @@ import PlanInquiryModal from "../components/PlanInquiryModal";
 import PlanUnlockModal from "../components/PlanUnlockModal";
 import ImageGallery from "../components/ImageGallery";
 import SpecTable from "../components/SpecTable";
-import StarRating from "../components/StarRating";
+import RatingBadge from "../components/RatingBadge";
 import ReviewSection from "../components/ReviewSection";
 import OptionSelector from "../components/OptionSelector";
 import { getPlanBadge } from "../lib/isNew";
+import { formatLocation } from "../lib/locations";
 
 function badgeStyle(badge) {
   if (badge === "new") return "bg-brand-500";
@@ -82,7 +83,7 @@ export default function PlanDetail() {
     return () => window.removeEventListener("civilbridge:entitlements-changed", refetch);
   }, [id, token]);
 
-  // Similar plans: same type + city first; widen to just the same type if
+  // Similar plans: same type + district first; widen to just the same type if
   // that's too thin.
   useEffect(() => {
     if (!plan) return;
@@ -90,7 +91,7 @@ export default function PlanDetail() {
 
     async function loadSimilar() {
       try {
-        let results = await api.getPlans({ type: plan.plan_type, city: plan.city });
+        let results = await api.getPlans({ type: plan.plan_type, district: plan.district });
         results = results.filter((p) => p.id !== plan.id);
         if (results.length < 3) {
           const broader = await api.getPlans({ type: plan.plan_type });
@@ -147,7 +148,7 @@ export default function PlanDetail() {
     <>
       <Seo
         title={plan.title}
-        description={plan.description || `${plan.title}${plan.city ? ` in ${plan.city}` : ""} - CivilBridge building plan.`}
+        description={plan.description || `${plan.title}${formatLocation(plan) ? ` in ${formatLocation(plan)}` : ""} - CivilBridge building plan.`}
         path={`/plans/${plan.id}`}
       />
 
@@ -193,15 +194,12 @@ export default function PlanDetail() {
               </div>
               <h1 className="mt-3 max-w-2xl text-2xl font-extrabold text-white sm:text-4xl">{plan.title}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-white/80">
-                {plan.city && (
+                {formatLocation(plan) && (
                   <span className="flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4" /> {plan.city}
+                    <MapPin className="h-4 w-4" /> {formatLocation(plan)}
                   </span>
                 )}
-                <span className="flex items-center gap-1.5">
-                  <StarRating value={plan.rating} />
-                  {plan.review_count > 0 ? `(${plan.review_count})` : "No reviews yet"}
-                </span>
+                <RatingBadge tone="light" rating={plan.rating} reviewCount={plan.review_count} emptyLabel="No reviews yet" />
                 <span className="flex items-center gap-1 text-white/60">
                   <Eye className="h-3.5 w-3.5" /> {plan.view_count} views
                 </span>
@@ -257,7 +255,7 @@ export default function PlanDetail() {
                       { label: "Bedrooms", value: plan.bedrooms },
                       { label: "Bathrooms", value: plan.bathrooms },
                       { label: "Size", value: plan.size_sqm ? `${Number(plan.size_sqm).toLocaleString()} sqm` : null },
-                      { label: "City", value: plan.city },
+                      { label: "Location", value: formatLocation(plan) },
                       { label: "Prime Location", value: plan.is_prime_location ? "Yes" : null },
                     ]}
                   />
@@ -277,12 +275,7 @@ export default function PlanDetail() {
               )}
 
               {tab === "reviews" && (
-                <ReviewSection
-                  id={plan.id}
-                  getReviews={api.getPlanReviews}
-                  submitReview={api.submitPlanReview}
-                  onSubmitted={() => api.getPlan(id, token).then(setPlan).catch(() => {})}
-                />
+                <ReviewSection kind="plan" id={plan.id} onChanged={() => api.getPlan(id, token).then(setPlan).catch(() => {})} />
               )}
             </div>
           </div>
@@ -407,9 +400,9 @@ export default function PlanDetail() {
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold text-ink-900">{p.title}</h3>
-                    {p.city && (
+                    {formatLocation(p) && (
                       <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                        <MapPin className="h-3.5 w-3.5" /> {p.city}
+                        <MapPin className="h-3.5 w-3.5" /> {formatLocation(p)}
                       </p>
                     )}
                     <p className="mt-2 font-bold text-brand-500">

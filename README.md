@@ -870,3 +870,79 @@ anywhere:
 - **Email/uploads**: SMTP and Cloudinary both fail gracefully (log instead
   of crash) if left unset, so it's safe to deploy without them first and
   add real credentials later.
+
+---
+
+## 19. Estimator, AI agent, hybrid chat, ratings and locations
+
+Full detail for the agent contract lives in
+[`docs/N8N_AGENT_INTEGRATION.md`](docs/N8N_AGENT_INTEGRATION.md). The short
+version:
+
+- **Estimator is gated on a real file.** Nothing past the upload area works
+  until a plan (PDF/DWG/DXF/PLN/IFC/ZIP, up to 50 MB) has uploaded and passed a
+  content check. The server enforces this too - `POST /api/estimates` refuses a
+  request whose `attachment_url` isn't a file we stored, *before* it spends a
+  free credit. Every estimate is then assigned to an expert by the admin team
+  (Admin → Estimates; admins are alerted in-app and by email, experts see only
+  what's assigned to them, and the client just waits and is notified when
+  everything is done). The client lands on the **Results Dashboard**
+  (`/estimates/:id`): a 4-stage progress view, then the cost breakdown and
+  drawing downloads once an expert verifies. Numbers are withheld by the API, not
+  just hidden by the page, until then.
+- **The AI agent is pluggable and idle until switched on.** `server/src/agent/`
+  holds a provider interface (n8n today; a proprietary model later), a job table
+  (`agent_jobs`), and a signed callback (`POST /api/agent/callback`). Keys live
+  only in `server/.env` (see the "AI agent + chat" block of `.env.example`);
+  `AGENT_ENABLED=false` means nothing is ever sent. Admin → **Integrations**
+  shows status without revealing any key.
+- **Hybrid chat.** AI Studio answers everyday questions instantly (Layer 1: the
+  built-in responder, or a language model when `CHAT_PROVIDER=llm`), and hands
+  anything needing real data - estimates, live prices, drawing sets - to the
+  agent as a job (Layer 2), rewriting the "working on it" message in place when
+  the answer arrives.
+- **Ratings are only ever real.** A rating is the aggregate of verified-client
+  reviews, recomputed in SQL - it can't be typed in, and every `npm run migrate`
+  recomputes them from the review tables (so old fabricated values disappear).
+  Who may review, checked on the server: signed in, verified email, not staff or
+  the owner, **and** a recorded interaction - a purchase (plans), a verified
+  estimate or paid consultation (experts), or a tour our team marked completed
+  (properties: Admin → **Tours**). Experts become "verified" only when an admin
+  verifies them (Admin → **Experts**).
+- **Locations are District → Sector.** One cascading control everywhere
+  (`client/src/components/LocationSelect.jsx`), backed by Rwanda's 30 districts
+  and 416 sectors (`client/src/data/rwandaLocations.json`, mirrored in
+  `server/src/data/`). The server validates every district/sector pair; exact
+  addresses are never collected. Old rows that only have a free-text `city` keep
+  displaying it until edited.
+- **Live experts.** Admin → **Experts** opens with a "Live now" strip: which verified
+  experts are on the site right now (online, or away if their tab is hidden/idle),
+  how much open work each has, and last-seen for the rest. The assignment picker on
+  Admin → Estimates lists experts most-available first, and **Follow up** sends an
+  assigned expert a reminder (in-app, plus email if they're offline; once every
+  30 minutes per estimate). Presence comes from the socket connection - the client
+  proves who it is with its login token on every connect, which is also what lets
+  notifications survive a reconnect. In memory, single-process (move to Redis for
+  several API instances).
+- **Pricing and limits are one file.** `server/src/config/pricing.js` drives what's
+  enforced (monthly estimate allowance, expert-conversation and listing caps),
+  what a payment request is charged, and the Pricing page itself. See
+  [`docs/PRICING_AND_LIMITS.md`](docs/PRICING_AND_LIMITS.md).
+- **Pinterest.** The site carries Pinterest's domain-verification tag
+  (`client/index.html`, `p:domain_verify`) so the domain can be claimed. New
+  listings reach Pinterest through a public RSS feed -
+  `https://civil-bridge.com/api/feeds/pinterest.xml` (all),
+  `?type=properties` (listings and land plots) and `?type=plans` (building
+  plans) - one feed per board. Only approved, available properties and plan
+  *preview* images are included; never pending/sold listings, paid drawings or
+  anyone's contact details. In Pinterest: Business hub → Bulk create → Connect
+  RSS feed. Needs `CLIENT_URL` set to the public https address.
+- **Homepage counters are live.** `GET /api/stats/public` returns the number of
+  verified experts and estimated projects (plus an overall rating once there are
+  at least 5 reviews); open pages update via the `stats:updated` socket event.
+
+**Deploying this update:** `npm run migrate` (adds the new tables/columns and
+recomputes ratings), then raise Nginx's `client_max_body_size` to `55M` in the
+live config (the template in `deploy/` is already updated - the copy in
+`/etc/nginx/conf.d/` is yours to edit) and `nginx -s reload`. Set `SERVER_URL`
+to the public https URL before switching the agent on.

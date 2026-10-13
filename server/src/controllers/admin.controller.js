@@ -12,14 +12,54 @@ import {
   Conversation,
   Message,
   PlanInquiry,
+  AgentJob,
 } from "../models/index.js";
 import { listAll as listAllPayments, updateStatus as updatePaymentStatus } from "./payments.controller.js";
 import { sendMail } from "../config/mailer.js";
 import { notify } from "../lib/notify.js";
 import { broadcastNewListing } from "../lib/broadcastListing.js";
+import { LocationError, resolveLocation } from "../lib/locations.js";
+import { recomputeAllRatings } from "../lib/reviews.js";
 import { EVENTS } from "../sockets/index.js";
+import * as presence from "../lib/presence.js";
 
 export { listAllPayments, updatePaymentStatus };
+
+// Only these fields can be set from a request body when an admin creates a
+// listing. Everything else - rating, review_count, view_count, is_approved -
+// is computed by the system or has its own dedicated action, so it can never
+// be typed in (that's how a fake 4.5-star rating used to get onto plans).
+const PROPERTY_CREATE_FIELDS = [
+  "title", "description", "property_type", "price", "currency", "size_sqm", "bedrooms", "bathrooms",
+  "image_url", "images", "is_featured", "status",
+];
+const PLAN_CREATE_FIELDS = [
+  "title", "description", "plan_type", "price", "currency", "bedrooms", "bathrooms", "size_sqm", "badge",
+  "is_prime_location", "image_url", "images", "document_url", "video_url", "zip_url", "license_price",
+];
+
+function pick(body, fields) {
+  const out = {};
+  for (const field of fields) if (field in body) out[field] = body[field];
+  return out;
+}
+
+// District + sector, validated against Rwanda's real administrative list. On
+// an edit, a field that isn't in the request keeps the row's current value so
+// changing only the sector still gets checked against the right district.
+function locationFor(body, current = {}) {
+  return resolveLocation(
+    "district" in body ? body.district : current.district,
+    "sector" in body ? body.sector : current.sector,
+    { required: true, sectorRequired: true }
+  );
+}
+
+function sendLocationError(res, err) {
+  if (!(err instanceof LocationError)) return false;
+  res.status(400).json({ success: false, message: err.message });
+  return true;
+}
 
 // GET /api/admin/analytics
 // Powers the Overview charts (estimate volume, user growth) and the
@@ -87,7 +127,7 @@ export async function analytics(req, res) {
     // Leaderboards.
     const [topProperties, topExperts, topPlans] = await Promise.all([
       Property.findAll({
-        attributes: ["id", "title", "city", "view_count"],
+        attributes: ["id", "title", "city", "district", "sector", "view_count"],
         order: [["view_count", "DESC"]],
         limit: 5,
       }),
@@ -101,7 +141,7 @@ export async function analytics(req, res) {
         limit: 5,
       }),
       Plan.findAll({
-        attributes: ["id", "title", "rating", "view_count"],
+        attributes: ["id", "title", "rating", "review_count", "view_count"],
         order: [["view_count", "DESC"]],
         limit: 5,
       }),
@@ -143,16 +183,22 @@ export async function analytics(req, res) {
 // GET /api/admin/stats
 export async function stats(req, res) {
   try {
-    const [userCount, propertyCount, expertCount, planCount, subscriberCount, estimates, paymentCount] =
+    const [userCount, propertyCount, expertCount, planCount, subscriberCount, estimates, paymentCount, verifiedExpertCount] =
       await Promise.all([
         User.count(),
         Property.count(),
         Expert.count(),
         Plan.count(),
         NewsletterSubscriber.count({ where: { is_active: true } }),
-        Estimate.findAll({ attributes: ["status"] }),
+        Estimate.findAll({ attributes: ["status", "assigned_expert_id"] }),
         Payment.count(),
+        Expert.count({ where: { is_verified: true } }),
       ]);
+
+    // Work that's waiting on the team to hand it to an expert.
+    const awaitingAssignment = estimates.filter(
+      (e) => ["draft", "ai_generated"].includes(e.status) && !e.assigned_expert_id
+    ).length;
 
     const estimatesByStatus = estimates.reduce((acc, e) => {
       acc[e.status] = (acc[e.status] || 0) + 1;
@@ -165,6 +211,8 @@ export async function stats(req, res) {
         userCount,
         propertyCount,
         expertCount,
+        verifiedExpertCount,
+        awaitingAssignment,
         planCount,
         subscriberCount,
         estimateCount: estimates.length,
@@ -189,7 +237,28 @@ export async function listEstimates(req, res) {
       order: [["created_at", "DESC"]],
       limit: 100,
     });
-    res.json({ success: true, data: estimates });
+
+    // What the analysis engine is doing for each, so the team can tell "still
+    // being analysed" from "analysed, waiting for you to assign someone".
+    const jobs = estimates.length
+      ? await AgentJob.findAll({ where: { estimate_id: estimates.map((e) => e.id) }, order: [["created_at", "DESC"]] })
+      : [];
+    const latestJob = new Map();
+    for (const job of jobs) if (!latestJob.has(job.estimate_id)) latestJob.set(job.estimate_id, job);
+
+    // Is the assigned expert on the site right now? (For the follow-up column.)
+    const assignedIds = [...new Set(estimates.map((e) => e.assigned_expert_id).filter(Boolean))];
+    const experts = assignedIds.length ? await Expert.findAll({ where: { id: assignedIds }, attributes: ["id", "user_id"] }) : [];
+    const expertUser = new Map(experts.map((x) => [x.id, x.user_id]));
+
+    res.json({
+      success: true,
+      data: estimates.map((e) => ({
+        ...e.toJSON(),
+        job_status: latestJob.get(e.id)?.status ?? null,
+        expert_presence: e.assigned_expert_id ? presence.statusOf(expertUser.get(e.assigned_expert_id)) : null,
+      })),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to fetch estimates" });
@@ -395,6 +464,9 @@ export async function deleteUser(req, res) {
     }
 
     await user.destroy();
+    // Their reviews were deleted with them (ON DELETE CASCADE), so every
+    // listing's average has to be recomputed or it would keep counting them.
+    await recomputeAllRatings();
     res.json({ success: true, data: { deleted: true } });
   } catch (err) {
     console.error(err);
@@ -407,10 +479,16 @@ export async function deleteUser(req, res) {
 // POST /api/admin/properties
 export async function createProperty(req, res) {
   try {
-    const property = await Property.create({ ...req.body, owner_id: req.body.owner_id || null });
+    const location = locationFor(req.body);
+    const property = await Property.create({
+      ...pick(req.body, PROPERTY_CREATE_FIELDS),
+      ...location,
+      owner_id: req.body.owner_id || null,
+    });
     broadcastNewListing({ kind: "property", title: property.title, id: property.id }).catch(() => {});
     res.status(201).json({ success: true, data: property });
   } catch (err) {
+    if (sendLocationError(res, err)) return;
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to create property" });
   }
@@ -423,16 +501,16 @@ export async function updateProperty(req, res) {
     if (!property) {
       return res.status(404).json({ success: false, message: "Property not found" });
     }
-    const editable = [
-      "title", "description", "property_type", "price", "city", "district", "size_sqm",
-      "bedrooms", "bathrooms", "image_url", "images", "is_featured", "status",
-    ];
-    for (const field of editable) {
+    for (const field of PROPERTY_CREATE_FIELDS) {
       if (field in req.body) property[field] = req.body[field];
+    }
+    if ("district" in req.body || "sector" in req.body) {
+      Object.assign(property, locationFor(req.body, property));
     }
     await property.save();
     res.json({ success: true, data: property });
   } catch (err) {
+    if (sendLocationError(res, err)) return;
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to update property" });
   }
@@ -484,10 +562,12 @@ export async function deleteProperty(req, res) {
 // POST /api/admin/plans
 export async function createPlan(req, res) {
   try {
-    const plan = await Plan.create(req.body);
+    const location = locationFor(req.body);
+    const plan = await Plan.create({ ...pick(req.body, PLAN_CREATE_FIELDS), ...location });
     broadcastNewListing({ kind: "plan", title: plan.title, id: plan.id }).catch(() => {});
     res.status(201).json({ success: true, data: plan });
   } catch (err) {
+    if (sendLocationError(res, err)) return;
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to create plan" });
   }
@@ -500,16 +580,16 @@ export async function updatePlan(req, res) {
     if (!plan) {
       return res.status(404).json({ success: false, message: "Plan not found" });
     }
-    const editable = [
-      "title", "description", "plan_type", "price", "city", "bedrooms", "bathrooms", "size_sqm", "rating", "badge",
-      "is_prime_location", "image_url", "images", "document_url", "video_url", "zip_url", "license_price",
-    ];
-    for (const field of editable) {
+    for (const field of PLAN_CREATE_FIELDS) {
       if (field in req.body) plan[field] = req.body[field];
+    }
+    if ("district" in req.body || "sector" in req.body) {
+      Object.assign(plan, locationFor(req.body, plan));
     }
     await plan.save();
     res.json({ success: true, data: plan });
   } catch (err) {
+    if (sendLocationError(res, err)) return;
     console.error(err);
     res.status(500).json({ success: false, message: "Failed to update plan" });
   }

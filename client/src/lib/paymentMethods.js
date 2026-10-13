@@ -31,8 +31,3 @@ export const PAYMENT_METHODS = [
     details: null, // e.g. a hosted payment-link URL once a card processor is chosen
   },
 ];
-
-// Keep in step with ESTIMATE_BUNDLE_MULTIPLIER in server/src/config/pricing.js.
-// The server always recomputes the real amount; this only drives what the
-// modal displays before submitting.
-export const ESTIMATE_BUNDLE_MULTIPLIER = 1.15;

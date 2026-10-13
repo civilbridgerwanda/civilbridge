@@ -142,20 +142,59 @@ export function paymentAlertEmail({ payerName, payerEmail, notes, amount, curren
   );
 }
 
+// Sent to the team when a piece of work needs a human to move it on - an
+// estimate whose analysis has finished (or failed) and is waiting for an
+// expert to be assigned.
+export function workReadyAlertEmail({ title, projectName, note, link }) {
+  return wrap(
+    title,
+    `<p><strong>${projectName}</strong></p>
+     <p>${note}</p>
+     ${button("Open Estimates", link)}`
+  );
+}
+
+// A nudge from the team to an expert who has assigned work waiting - sent by
+// email only when they're not currently on the site.
+export function workReminderEmail({ projectName, waiting }) {
+  return wrap(
+    "A reminder from the CivilBridge team",
+    `<p>You have work waiting for you:</p>
+     <p><strong>${projectName}</strong> - assigned ${waiting} ago. The client is waiting on it.</p>
+     <p>Please open it when you can, or let the team know if you can't take it on so it can be passed to someone else.</p>
+     ${button("Open My Work", "/expert-dashboard")}`
+  );
+}
+
 // Sent when a payment is marked completed - the client's proof that the
 // thing they paid for is now active.
 export function paymentConfirmedEmail({ fullName, notes, amount, currency, purpose, planId }) {
-  const isUpgrade = purpose === "plan_upgrade";
+  // What was bought decides the message and where the button leads.
+  const kind =
+    purpose === "plan_upgrade" ? "upgrade" : purpose === "estimate_purchase" || purpose === "drawings_addon" ? "credits" : "plan";
+  const copy = {
+    upgrade: {
+      title: "Your plan is active",
+      line: "Your new plan and its limits are active right now.",
+      cta: ["Go to My Account", "/settings"],
+    },
+    credits: {
+      title: "Your purchase is confirmed",
+      line: "It's ready to use - upload your plan in the Estimator and we'll take it from there.",
+      cta: ["Open the Estimator", "/estimator"],
+    },
+    plan: {
+      title: "Your download is unlocked",
+      line: "You can download everything for this plan right now.",
+      cta: ["Download My Plan", `/plans/${planId}`],
+    },
+  }[kind];
   return wrap(
-    isUpgrade ? "Your plan is active" : "Your download is unlocked",
+    copy.title,
     `<p>Hi ${fullName},</p>
      <p>We've confirmed your payment of <strong>${money(currency, amount)}</strong> for
-     <strong>${notes}</strong>. ${
-       isUpgrade
-         ? "Your new plan and its limits are active right now."
-         : "You can download everything for this plan right now."
-     }</p>
-     ${button(isUpgrade ? "Go to My Account" : "Download My Plan", isUpgrade ? "/settings" : `/plans/${planId}`)}
+     <strong>${notes}</strong>. ${copy.line}</p>
+     ${button(copy.cta[0], copy.cta[1])}
      <p>Thank you for choosing CivilBridge.</p>`
   );
 }
